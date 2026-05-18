@@ -1,50 +1,8 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>視聴中 - Inv-tube</title>
-  <link rel="stylesheet" href="app.css" />
-</head>
-<body class="page-watch">
-  <header>
-    <div class="header-inner">
-      <a href="/" class="logo">
-        <span class="logo-inv">Inv</span><span class="logo-tube">-tube</span>
-      </a>
-      <div class="search-wrapper">
-        <form class="search-form" id="searchForm">
-          <input
-            type="text"
-            id="searchInput"
-            class="search-input"
-            placeholder="動画を検索..."
-            autocomplete="off"
-          />
-          <button type="submit" class="search-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="18" height="18"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          </button>
-        </form>
-        <ul id="suggestions" class="suggestions-list" hidden></ul>
-      </div>
-      <nav class="header-nav">
-        <a href="/dl" class="header-nav-link">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          ダウンロード
-        </a>
-        <a href="/library" class="header-nav-link">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-          ライブラリ
-        </a>
-        <a href="/settings" class="header-nav-link">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          設定
-        </a>
-      </nav>
-    </div>
-  </header>
-
-  <main class="watch-main" id="watchMain">
+{% extends "base.html" %}
+{% block title %}視聴中 - Inv-tube{% endblock %}
+{% block body_class %}page-watch{% endblock %}
+{% block content %}
+<main class="watch-main" id="watchMain">
     <div class="watch-layout">
       <!-- Left: player + info -->
       <div class="watch-left">
@@ -367,7 +325,4 @@
       </div>
     </div>
   </div>
-
-  <script src="app.js"></script>
-</body>
-</html>
+{% endblock %}

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>チャット - Inv-tube</title>
+  <script>if (location.search.includes('embed=1')) document.documentElement.classList.add('in-iframe');</script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #050914;
+      --surface: rgba(13, 8, 40, 0.82);
+      --border: rgba(139, 92, 246, 0.22);
+      --accent: #7c3aed;
+      --accent-bright: #a78bfa;
+      --cyan: #06b6d4;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --glow-purple: rgba(124, 58, 237, 0.45);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    .chat-topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(5, 9, 20, 0.92);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 1px 30px rgba(124, 58, 237, 0.12);
+      padding: 0.7rem 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .topbar-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.45rem 1rem;
+      border-radius: 8px;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.88rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+      white-space: nowrap;
+    }
+
+    .topbar-btn:hover {
+      border-color: var(--accent-bright);
+      box-shadow: 0 0 12px var(--glow-purple);
+      background: rgba(124, 58, 237, 0.18);
+    }
+
+    .topbar-btn svg {
+      flex-shrink: 0;
+    }
+
+    .topbar-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--accent-bright);
+      margin-left: 4px;
+      text-shadow: 0 0 12px rgba(167, 139, 250, 0.5);
+    }
+
+    .topbar-spacer { flex: 1; }
+
+    .chat-frame-wrap {
+      width: 100%;
+      height: calc(100vh - 52px);
+    }
+
+    html.in-iframe .chat-topbar { display: none !important; }
+    html.in-iframe .chat-frame-wrap { height: 100vh; }
+
+    .chat-frame-wrap iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-topbar">
+    <a href="/" class="topbar-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="15" height="15"><polyline points="15 18 9 12 15 6"/></svg>
+      戻る
+    </a>
+    <span class="topbar-title">💬 ちょこちゃっとツール</span>
+    <div class="topbar-spacer"></div>
+    <a href="/" class="topbar-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="15" height="15"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      ホーム
+    </a>
+  </div>
+  <div class="chat-frame-wrap">
+    <iframe src="/chat-raw" title="チャット"></iframe>
+  </div>
+</body>
+</html>

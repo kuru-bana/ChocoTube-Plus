@@ -315,15 +315,37 @@ function initImportExport() {
 }
 
 /* ===== FAVORITES ===== */
+let currentFavTab = 'videos';
+
+function initFavSubtabs() {
+  document.querySelectorAll('.lib-fav-subtab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentFavTab = btn.dataset.favtab;
+      document.querySelectorAll('.lib-fav-subtab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('favVideosPanel').hidden = currentFavTab !== 'videos';
+      document.getElementById('favPlPanel').hidden = currentFavTab !== 'playlists';
+      document.getElementById('favMixPanel').hidden = currentFavTab !== 'mixes';
+    });
+  });
+}
+
 function renderFavorites() {
-  const favs  = getFavorites();
-  const grid    = document.getElementById('favGrid');
-  const empty   = document.getElementById('favEmpty');
-  const count   = document.getElementById('favCount');
+  initFavSubtabs();
+  renderFavVideos();
+  renderFavPlaylists();
+  renderFavMixes();
+
+  const total = getFavorites().length + getFavoritePlaylists().length + getFavoriteMixes().length;
+  document.getElementById('favCount').textContent = total > 0 ? total : '';
+}
+
+function renderFavVideos() {
+  const favs = getFavorites();
+  const grid = document.getElementById('favGrid');
+  const empty = document.getElementById('favEmpty');
   const toolbar = document.getElementById('favToolbar');
   const clearBtn = document.getElementById('clearFavBtn');
-
-  count.textContent = favs.length > 0 ? favs.length : '';
 
   if (!favs.length) {
     empty.hidden = false;
@@ -349,7 +371,8 @@ function renderFavorites() {
         e.preventDefault();
         e.stopPropagation();
         removeFavorite(v.videoId);
-        renderFavorites();
+        renderFavVideos();
+        updateFavCount();
       });
       wrap.appendChild(card);
       wrap.appendChild(delBtn);
@@ -362,11 +385,142 @@ function renderFavorites() {
   if (missingIcons.length > 0) fillMissingIcons(missingIcons);
 
   clearBtn.onclick = () => {
-    if (confirm('お気に入りをすべて削除しますか？')) {
-      localStorage.removeItem('invtube_favorites');
-      renderFavorites();
+    if (confirm('お気に入りの動画をすべて削除しますか？')) {
+      localStorage.removeItem('chocotube_favorites');
+      renderFavVideos();
+      updateFavCount();
     }
   };
+}
+
+function renderFavPlaylists() {
+  const favs = getFavoritePlaylists();
+  const grid = document.getElementById('favPlGrid');
+  const empty = document.getElementById('favPlEmpty');
+  const toolbar = document.getElementById('favPlToolbar');
+  const clearBtn = document.getElementById('clearFavPlBtn');
+
+  if (!favs.length) {
+    empty.hidden = false;
+    toolbar.hidden = true;
+    grid.innerHTML = '';
+    return;
+  }
+  empty.hidden = true;
+  toolbar.hidden = false;
+  grid.innerHTML = '';
+
+  favs.forEach(pl => {
+    const card = document.createElement('a');
+    card.className = 'lib-pl-card fav-pl-card';
+    card.href = `/playlist?list=${encodeURIComponent(pl.playlistId)}`;
+    const thumb = pl.thumbnail || '';
+    card.innerHTML = `
+      <div class="lib-pl-card-thumb">
+        ${thumb
+          ? `<img src="${escapeHtml(thumb)}" alt="" loading="lazy" onload="this.classList.add('loaded')" />`
+          : `<div class="lib-pl-card-thumb-empty"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>`
+        }
+        ${pl.videoCount != null ? `<div class="lib-pl-card-count">${pl.videoCount}本</div>` : ''}
+      </div>
+      <div class="lib-pl-card-info">
+        <div class="lib-pl-card-name">${escapeHtml(pl.title || '')}</div>
+        ${pl.author ? `<div class="lib-pl-card-date">${escapeHtml(pl.author)}</div>` : ''}
+        <div class="lib-pl-card-date">追加日 ${formatLibDate(pl.favoritedAt)}</div>
+      </div>
+    `;
+    const wrap = document.createElement('div');
+    wrap.className = 'fav-card-wrap';
+    const delBtn = document.createElement('button');
+    delBtn.className = 'fav-del-btn';
+    delBtn.title = 'お気に入りから削除';
+    delBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+    delBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      removeFavoritePlaylist(pl.playlistId);
+      renderFavPlaylists();
+      updateFavCount();
+    });
+    wrap.appendChild(card);
+    wrap.appendChild(delBtn);
+    grid.appendChild(wrap);
+  });
+
+  clearBtn.onclick = () => {
+    if (confirm('お気に入りのプレイリストをすべて削除しますか？')) {
+      localStorage.removeItem('chocotube_fav_playlists');
+      renderFavPlaylists();
+      updateFavCount();
+    }
+  };
+}
+
+function renderFavMixes() {
+  const favs = getFavoriteMixes();
+  const grid = document.getElementById('favMixGrid');
+  const empty = document.getElementById('favMixEmpty');
+  const toolbar = document.getElementById('favMixToolbar');
+  const clearBtn = document.getElementById('clearFavMixBtn');
+
+  if (!favs.length) {
+    empty.hidden = false;
+    toolbar.hidden = true;
+    grid.innerHTML = '';
+    return;
+  }
+  empty.hidden = true;
+  toolbar.hidden = false;
+  grid.innerHTML = '';
+
+  favs.forEach(mix => {
+    const card = document.createElement('a');
+    card.className = 'lib-pl-card fav-pl-card';
+    card.href = `/mix?id=${encodeURIComponent(mix.mixId)}`;
+    const thumb = mix.thumbnail || '';
+    card.innerHTML = `
+      <div class="lib-pl-card-thumb">
+        ${thumb
+          ? `<img src="${escapeHtml(thumb)}" alt="" loading="lazy" onload="this.classList.add('loaded')" />`
+          : `<div class="lib-pl-card-thumb-empty"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg></div>`
+        }
+        ${mix.videoCount != null ? `<div class="lib-pl-card-count">${mix.videoCount}本</div>` : ''}
+      </div>
+      <div class="lib-pl-card-info">
+        <div class="lib-pl-card-name">${escapeHtml(mix.title || '')}</div>
+        <div class="lib-pl-card-date">追加日 ${formatLibDate(mix.favoritedAt)}</div>
+      </div>
+    `;
+    const wrap = document.createElement('div');
+    wrap.className = 'fav-card-wrap';
+    const delBtn = document.createElement('button');
+    delBtn.className = 'fav-del-btn';
+    delBtn.title = 'お気に入りから削除';
+    delBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+    delBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      removeFavoriteMix(mix.mixId);
+      renderFavMixes();
+      updateFavCount();
+    });
+    wrap.appendChild(card);
+    wrap.appendChild(delBtn);
+    grid.appendChild(wrap);
+  });
+
+  clearBtn.onclick = () => {
+    if (confirm('お気に入りのミックスをすべて削除しますか？')) {
+      localStorage.removeItem('chocotube_fav_mixes');
+      renderFavMixes();
+      updateFavCount();
+    }
+  };
+}
+
+function updateFavCount() {
+  const total = getFavorites().length + getFavoritePlaylists().length + getFavoriteMixes().length;
+  document.getElementById('favCount').textContent = total > 0 ? total : '';
 }
 
 /* ===== HELPERS ===== */

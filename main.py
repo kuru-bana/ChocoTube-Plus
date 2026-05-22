@@ -46,7 +46,8 @@ async def get_instances(category: str) -> list:
     resp.raise_for_status()
     data = resp.json()
     instances = data.get("working_instances", [])
-    category_cache[category] = {"instances": instances, "time": now}
+    if instances:
+        category_cache[category] = {"instances": instances, "time": now}
     return instances
 
 

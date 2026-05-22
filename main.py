@@ -75,6 +75,14 @@ def _has_valid_videos(data) -> bool:
     return any(not item.get("errorMessage") and (item.get("videoId") or item.get("title")) for item in items)
 
 
+def _has_valid_stream(data) -> bool:
+    """Return True if response has at least one format stream with a playable URL."""
+    if not isinstance(data, dict):
+        return False
+    streams = data.get("formatStreams") or data.get("adaptiveFormats") or []
+    return any(isinstance(s, dict) and s.get("url") for s in streams)
+
+
 def _extract_innertube_videos(data: dict) -> list:
     """Parse innertube channel tab response into [{videoId, title}] list."""
     result = []
@@ -179,7 +187,7 @@ def _apply_enrichment(data, innertube_items: list, channel_id: str):
     return data
 
 
-async def proxy_parallel(category: str, invidious_path: str, exclude_list: list = None, prefer_valid_videos: bool = False) -> dict:
+async def proxy_parallel(category: str, invidious_path: str, exclude_list: list = None, prefer_valid_videos: bool = False, prefer_valid_stream: bool = False) -> dict:
     instances = await get_instances(category)
     if exclude_list:
         instances = [b for b in instances if not any(ex in b or b in ex for ex in exclude_list)]
@@ -200,6 +208,13 @@ async def proxy_parallel(category: str, invidious_path: str, exclude_list: list 
                     result = task.result()
                     if prefer_valid_videos:
                         if _has_valid_videos(result["data"]):
+                            if winner is None:
+                                winner = result
+                        else:
+                            if fallback is None:
+                                fallback = result
+                    elif prefer_valid_stream:
+                        if _has_valid_stream(result["data"]):
                             if winner is None:
                                 winner = result
                         else:
@@ -333,7 +348,7 @@ async def proxy_stream(path: str, request: Request):
         qs = urlencode(params) if params else ""
         app_path = "/" + path + ("?" + qs if qs else "")
         category, invidious_path = map_path(app_path)
-        result = await proxy_parallel(category, invidious_path, exclude_list)
+        result = await proxy_parallel(category, invidious_path, exclude_list, prefer_valid_stream=True)
         headers = {}
         if result.get("used_instance"):
             headers["X-Instance-Used"] = result["used_instance"]

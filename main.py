@@ -17,6 +17,13 @@ category_cache: dict = {}
 http_client: httpx.AsyncClient = None
 
 
+async def get_client() -> httpx.AsyncClient:
+    global http_client
+    if http_client is None or http_client.is_closed:
+        http_client = httpx.AsyncClient(timeout=10, follow_redirects=True)
+    return http_client
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global http_client
@@ -34,7 +41,8 @@ async def get_instances(category: str) -> list:
     cached = category_cache.get(category)
     if cached and now - cached["time"] < CACHE_TTL:
         return cached["instances"]
-    resp = await http_client.get(f"{INVIDIOUS_BASE}/{category}.json")
+    client = await get_client()
+    resp = await client.get(f"{INVIDIOUS_BASE}/{category}.json")
     resp.raise_for_status()
     data = resp.json()
     instances = data.get("working_instances", [])
@@ -43,7 +51,8 @@ async def get_instances(category: str) -> list:
 
 
 async def _try_instance(base: str, invidious_path: str) -> dict:
-    resp = await http_client.get(base + invidious_path)
+    client = await get_client()
+    resp = await client.get(base + invidious_path)
     resp.raise_for_status()
     return {"data": resp.json(), "used_instance": base}
 
@@ -171,8 +180,9 @@ async def proxy_stream(path: str, request: Request):
 @app.get("/download")
 async def download(url: str = Query(...), filename: str = Query(default="download")):
     try:
-        req = http_client.build_request("GET", url)
-        upstream = await http_client.send(req, stream=True)
+        client = await get_client()
+        req = client.build_request("GET", url)
+        upstream = await client.send(req, stream=True)
         if not upstream.is_success:
             raise Exception(f"HTTP {upstream.status_code}")
 
@@ -201,7 +211,8 @@ CHANNEL_HOME_BASE = "https://choco-youtube-js.onrender.com"
 @app.get("/api/channel-home/{channel_id}")
 async def api_channel_home(channel_id: str):
     try:
-        resp = await http_client.get(f"{CHANNEL_HOME_BASE}/channel/{channel_id}", timeout=15)
+        client = await get_client()
+        resp = await client.get(f"{CHANNEL_HOME_BASE}/channel/{channel_id}", timeout=15)
         resp.raise_for_status()
         return JSONResponse(resp.json())
     except Exception as e:
@@ -238,7 +249,7 @@ async def whats():
 
 @app.get("/version")
 async def version():
-    return {"ver": "1.01"}
+    return {"ver": "1.10"}
 
 
 LINKLIST_URL = "https://raw.githubusercontent.com/kuru-bana/Link-list/refs/heads/main/choco-tube-plus.json"
@@ -247,7 +258,8 @@ LINKLIST_URL = "https://raw.githubusercontent.com/kuru-bana/Link-list/refs/heads
 async def _check_one(url: str) -> dict:
     base = url.rstrip("/")
     try:
-        r = await http_client.get(f"{base}/version", timeout=8)
+        client = await get_client()
+        r = await client.get(f"{base}/version", timeout=8)
         if r.status_code == 200:
             data = r.json()
             return {"url": base, "ver": data.get("ver", "?"), "online": True}
@@ -259,7 +271,8 @@ async def _check_one(url: str) -> dict:
 @app.get("/api/linklist-status")
 async def linklist_status():
     try:
-        r = await http_client.get(LINKLIST_URL, timeout=10)
+        client = await get_client()
+        r = await client.get(LINKLIST_URL, timeout=10)
         r.raise_for_status()
         urls = r.json()
     except Exception as e:
@@ -281,7 +294,8 @@ async def _ping_keepalive(self_url: str):
     ]
     for t in targets:
         try:
-            await http_client.get(t, timeout=10)
+            client = await get_client()
+            await client.get(t, timeout=10)
         except Exception:
             pass
 
@@ -353,7 +367,8 @@ async def choco_chat_new():
     if cached and now - cached["time"] < CHOCO_CHAT_TTL:
         return JSONResponse(cached["json"])
     try:
-        resp = await http_client.get(
+        client = await get_client()
+        resp = await client.get(
             "https://raw.githubusercontent.com/kuru-bana/choco-chat-tool/refs/heads/main/url.json"
         )
         resp.raise_for_status()

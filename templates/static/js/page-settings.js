@@ -8,21 +8,25 @@ document.addEventListener('DOMContentLoaded', () => {
 function initSettings() {
   const settings = getSettings();
 
-  const speedSelect       = document.getElementById('defaultSpeedSelect');
-  const loopToggle        = document.getElementById('loopToggle');
-  const autoplayToggle    = document.getElementById('autoplayNextToggle');
-  const volumeSlider      = document.getElementById('defaultVolumeSlider');
-  const volumeValue       = document.getElementById('defaultVolumeValue');
-  const resetBtn          = document.getElementById('resetSettingsBtn');
-  const clearHistBtn      = document.getElementById('clearHistBtn');
-  const clearFavBtn       = document.getElementById('clearFavBtn');
-  const toast             = document.getElementById('savedToast');
+  const speedSelect           = document.getElementById('defaultSpeedSelect');
+  const loopToggle            = document.getElementById('loopToggle');
+  const autoplayNextToggle    = document.getElementById('autoplayNextToggle');
+  const autoplayToggle        = document.getElementById('autoplayToggle');
+  const savePositionToggle    = document.getElementById('savePositionToggle');
+  const volumeSlider          = document.getElementById('defaultVolumeSlider');
+  const volumeValue           = document.getElementById('defaultVolumeValue');
+  const resetBtn              = document.getElementById('resetSettingsBtn');
+  const clearHistBtn          = document.getElementById('clearHistBtn');
+  const clearFavBtn           = document.getElementById('clearFavBtn');
+  const toast                 = document.getElementById('savedToast');
 
-  speedSelect.value     = String(settings.defaultSpeed);
-  loopToggle.checked    = !!settings.loop;
-  autoplayToggle.checked = !!settings.autoplayNext;
-  volumeSlider.value    = String(settings.defaultVolume ?? 100);
-  volumeValue.textContent = `${settings.defaultVolume ?? 100}%`;
+  speedSelect.value            = String(settings.defaultSpeed);
+  loopToggle.checked           = !!settings.loop;
+  autoplayNextToggle.checked   = !!settings.autoplayNext;
+  autoplayToggle.checked       = settings.autoplay !== false;
+  savePositionToggle.checked   = !!settings.savePosition;
+  volumeSlider.value           = String(settings.defaultVolume ?? 100);
+  volumeValue.textContent      = `${settings.defaultVolume ?? 100}%`;
 
   function updateVolSliderFill() {
     const pct = ((volumeSlider.value - volumeSlider.min) / (volumeSlider.max - volumeSlider.min)) * 100;
@@ -41,7 +45,9 @@ function initSettings() {
     saveSettings({
       defaultSpeed: parseFloat(speedSelect.value),
       loop: loopToggle.checked,
-      autoplayNext: autoplayToggle.checked,
+      autoplayNext: autoplayNextToggle.checked,
+      autoplay: autoplayToggle.checked,
+      savePosition: savePositionToggle.checked,
       defaultVolume: parseInt(volumeSlider.value, 10),
     });
     showToast();
@@ -55,27 +61,31 @@ function initSettings() {
 
   speedSelect.addEventListener('change', persist);
   loopToggle.addEventListener('change', () => {
-    if (loopToggle.checked && autoplayToggle.checked) {
-      autoplayToggle.checked = false;
+    if (loopToggle.checked && autoplayNextToggle.checked) {
+      autoplayNextToggle.checked = false;
     }
     persist();
   });
-  autoplayToggle.addEventListener('change', () => {
-    if (autoplayToggle.checked && loopToggle.checked) {
+  autoplayNextToggle.addEventListener('change', () => {
+    if (autoplayNextToggle.checked && loopToggle.checked) {
       loopToggle.checked = false;
     }
     persist();
   });
+  autoplayToggle.addEventListener('change', persist);
+  savePositionToggle.addEventListener('change', persist);
 
   resetBtn.addEventListener('click', () => {
     if (!confirm('設定をすべてリセットしますか？')) return;
     localStorage.removeItem('chocotube_settings');
     const def = getSettings();
-    speedSelect.value = String(def.defaultSpeed);
-    loopToggle.checked = def.loop;
-    autoplayToggle.checked = def.autoplayNext;
-    volumeSlider.value = String(def.defaultVolume);
-    volumeValue.textContent = `${def.defaultVolume}%`;
+    speedSelect.value            = String(def.defaultSpeed);
+    loopToggle.checked           = def.loop;
+    autoplayNextToggle.checked   = def.autoplayNext;
+    autoplayToggle.checked       = def.autoplay !== false;
+    savePositionToggle.checked   = !!def.savePosition;
+    volumeSlider.value           = String(def.defaultVolume);
+    volumeValue.textContent      = `${def.defaultVolume}%`;
     updateVolSliderFill();
     showToast();
   });

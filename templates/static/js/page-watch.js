@@ -1958,8 +1958,13 @@ async function loadTranscript(videoId, lang, langBtns) {
   currentLang = lang;
   activeTranscriptLine = null;
 
+  // find source for this lang
+  const activeBtn = langBtns.find(b => b.dataset.lang === lang);
+  const source = activeBtn ? (activeBtn.dataset.source || 'auto') : 'auto';
+
   try {
-    const data = await withRetry(() => fetchMain(`/api/transcripts/${videoId}?lang=${encodeURIComponent(lang)}`), 8);
+    const res = await fetch(`/api/transcript-data/${encodeURIComponent(videoId)}?lang=${encodeURIComponent(lang)}&source=${encodeURIComponent(source)}`);
+    const data = await res.json();
     const lines = Array.isArray(data) ? data : (data.transcript || data.captions || []);
 
     if (!lines.length) {
@@ -2014,8 +2019,9 @@ async function initTranscript(videoId) {
   if (!section || !body) return;
 
   try {
-    const data = await withRetry(() => fetchMain(`/api/captions/${videoId}`), 8);
-    const tracks = Array.isArray(data) ? data : (data.captions || []);
+    const res = await fetch(`/api/transcript-langs/${encodeURIComponent(videoId)}`);
+    const data = await res.json();
+    const tracks = Array.isArray(data) ? data : (data.tracks || []);
 
     if (!tracks.length) return;
 
@@ -2024,10 +2030,33 @@ async function initTranscript(videoId) {
 
     const langBtns = [];
     tracks.forEach(track => {
+      const langCode = track.language_code || track.languageCode || '';
+      const label = track.label || langCode || '?';
+      const source = track.source || 'auto';
+      const isGenerated = track.is_generated || false;
+
       const btn = document.createElement('button');
       btn.className = 'lang-btn';
-      btn.textContent = track.label || track.language_code || track.languageCode || '?';
-      btn.dataset.lang = track.language_code || track.languageCode || track.label || '';
+      btn.dataset.lang = langCode;
+      btn.dataset.source = source;
+
+      // label + auto-generated badge
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = label;
+      btn.appendChild(nameSpan);
+      if (isGenerated) {
+        const badge = document.createElement('span');
+        badge.className = 'lang-badge lang-badge-auto';
+        badge.textContent = '自動';
+        btn.appendChild(badge);
+      }
+      if (source === 'yta') {
+        const badge = document.createElement('span');
+        badge.className = 'lang-badge lang-badge-yta';
+        badge.textContent = 'YT';
+        btn.appendChild(badge);
+      }
+
       btn.addEventListener('click', () => {
         if (!body.hidden && btn.dataset.lang === currentLang) return;
         if (body.hidden) {

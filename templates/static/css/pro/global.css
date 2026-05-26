@@ -709,6 +709,16 @@ button.primary:hover, .btn-primary:hover, .download-btn:hover, .submit-btn:hover
   transform: translateY(-1px);
 }
 
+/* ===== HOME TABS (Pro) ===== */
+.home-tab.active {
+  color: var(--accent-bright);
+  border-bottom-color: var(--accent-bright);
+}
+
+.home-tab.active svg {
+  color: var(--accent-bright);
+}
+
 /* ===== HEADER SHORTCUTS (Pro) ===== */
 .header-shortcut:hover {
   color: var(--accent-bright);

@@ -709,6 +709,23 @@ button.primary:hover, .btn-primary:hover, .download-btn:hover, .submit-btn:hover
   transform: translateY(-1px);
 }
 
+/* ===== HEADER SHORTCUTS (Pro) ===== */
+.header-shortcut:hover {
+  color: var(--accent-bright);
+  background: var(--surface);
+}
+
+.header-shortcut.active {
+  color: var(--accent-bright);
+  background: rgba(139, 69, 19, 0.2);
+}
+
+.header-shortcut::after {
+  background: var(--surface2, #2a1a12);
+  border-color: var(--border);
+  color: var(--cream);
+}
+
 /* ===== SIDEBAR (new) ===== */
 .sidebar-overlay {
   background: rgba(0, 0, 0, 0.65);

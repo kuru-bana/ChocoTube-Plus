@@ -77,8 +77,14 @@ header {
 }
 
 /* ===== SEARCH ===== */
-.search-form {
+.search-wrapper {
   flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.search-form {
+  width: 100%;
   max-width: 620px;
   display: flex;
   border-radius: 12px;
@@ -701,6 +707,66 @@ button.primary, .btn-primary, .download-btn, .submit-btn {
 button.primary:hover, .btn-primary:hover, .download-btn:hover, .submit-btn:hover {
   filter: brightness(1.08);
   transform: translateY(-1px);
+}
+
+/* ===== SIDEBAR (new) ===== */
+.sidebar-overlay {
+  background: rgba(0, 0, 0, 0.65);
+}
+
+.app-sidebar {
+  background: rgba(20, 10, 5, 0.98);
+  border-right: 1px solid var(--border);
+  box-shadow: 4px 0 40px rgba(139, 69, 19, 0.25);
+}
+
+.sidebar-header {
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-logo {
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+
+.sidebar-nav-link:hover {
+  background: var(--surface);
+  color: var(--cream);
+}
+
+.sidebar-nav-link.active {
+  background: linear-gradient(135deg, rgba(139, 69, 19, 0.35), rgba(210, 105, 30, 0.22));
+  color: var(--cream);
+}
+
+.sidebar-footer {
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-theme-btn {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.sidebar-theme-btn:hover {
+  background: var(--surface2);
+  border-color: var(--border-glow);
+  color: var(--cream);
+}
+
+.sidebar-theme-btn.ui-btn-pro {
+  color: var(--accent-bright);
+  border-color: var(--accent);
+}
+
+/* ===== HAMBURGER (new) ===== */
+.hamburger-btn:hover {
+  background: var(--surface);
+}
+
+.hamburger-line {
+  background: var(--cream);
 }
 
 /* ===== YouTube-like Side Menu ===== */

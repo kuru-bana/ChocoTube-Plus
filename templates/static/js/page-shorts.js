@@ -114,6 +114,17 @@
     const ytBtn = document.getElementById('sfYtBtn');
     if (watchBtn) watchBtn.href = `/watch?v=${videoId}`;
     if (ytBtn) ytBtn.href = `https://www.youtube.com/shorts/${videoId}`;
+    // ショート視聴履歴に保存
+    if (typeof addShortsHistory === 'function') {
+      addShortsHistory({
+        videoId,
+        title: data.title || '',
+        author: data.author || '',
+        authorId: data.authorId || '',
+        authorThumbnails: data.authorThumbnails || [],
+        videoThumbnails: data.videoThumbnails || [],
+      });
+    }
   }
 
   function updateNavBtns() {
@@ -481,7 +492,7 @@
     document.getElementById('sfPrevBtn')?.addEventListener('click', () => navigateTo(queueIdx - 1));
     document.getElementById('sfNextBtn')?.addEventListener('click', () => navigateTo(queueIdx + 1));
     document.addEventListener('keydown', e => {
-      if (e.key === 'ArrowUp') { e.preventDefault(); navigateTo(queueIdx - 1); }
+      if (e.key === 'ArrowUp')   { e.preventDefault(); navigateTo(queueIdx - 1); }
       if (e.key === 'ArrowDown') { e.preventDefault(); navigateTo(queueIdx + 1); }
     });
 

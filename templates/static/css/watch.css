@@ -1571,6 +1571,49 @@ body.page-watch .lang-btn.active .lang-badge-yta {
   border-color: rgba(255, 255, 255, 0.25);
 }
 
+body.page-watch .transcript-translate-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface2);
+  border-radius: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+body.page-watch .transcript-translate-label {
+  font-size: 12px;
+  color: var(--text2);
+  white-space: nowrap;
+}
+
+body.page-watch .transcript-translate-select {
+  flex: 1;
+  min-width: 120px;
+  background: var(--surface3, var(--surface));
+  color: var(--text1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+body.page-watch .transcript-translate-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+
+body.page-watch .transcript-translate-btn:hover { opacity: 0.85; }
+
 body.page-watch .transcript-content {
   max-height: 320px;
   overflow-y: auto;

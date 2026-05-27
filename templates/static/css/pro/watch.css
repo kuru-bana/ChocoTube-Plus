@@ -503,6 +503,149 @@ body.page-watch .pc-icon-btn:disabled {
 
 body.page-watch .pc-actions { gap: 0.3rem; }
 
+/* ── Tool panel ── */
+body.page-watch .pc-tool-wrap { position: relative; }
+
+body.page-watch .pc-tool-panel {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  background: var(--surface2);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 220px;
+  max-height: 65vh;
+  overflow-y: auto;
+  z-index: 200;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.45);
+  animation: pcToolFadeIn 0.14s ease;
+}
+@keyframes pcToolFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+body.page-watch .pc-tool-heading {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.28rem 0.5rem 0.1rem;
+}
+body.page-watch .pc-tool-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.36rem 0.5rem;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.78rem;
+  text-align: left;
+  width: 100%;
+  transition: background 0.1s, color 0.1s;
+}
+body.page-watch .pc-tool-item:hover {
+  background: var(--accent);
+  color: #fff;
+}
+body.page-watch .pc-tool-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 19px;
+  border-radius: 4px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  font-size: 0.65rem;
+  font-family: monospace;
+  font-weight: 700;
+  flex-shrink: 0;
+  padding: 0 4px;
+  color: var(--text);
+  white-space: nowrap;
+  transition: border-color 0.1s, background 0.1s, color 0.1s;
+}
+body.page-watch .pc-tool-item:hover .pc-tool-key {
+  border-color: rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.18);
+  color: #fff;
+}
+body.page-watch .pc-tool-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0.22rem 0.4rem;
+}
+body.page-watch .pc-tool-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.2rem;
+  padding: 0.2rem 0.3rem;
+}
+body.page-watch .pc-tool-grid-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  padding: 0.35rem 0.1rem;
+  border-radius: 7px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.62rem;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+body.page-watch .pc-tool-grid-btn .pc-tool-key {
+  min-width: unset;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 0.7rem;
+}
+body.page-watch .pc-tool-grid-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+body.page-watch .pc-tool-grid-btn:hover .pc-tool-key { color: #fff; }
+body.page-watch .pc-tool-item:disabled,
+body.page-watch .pc-tool-grid-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+body.page-watch .pc-tool-item:disabled:hover,
+body.page-watch .pc-tool-grid-btn:disabled:hover {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text);
+}
+body.page-watch .pc-tool-item:disabled:hover .pc-tool-key,
+body.page-watch .pc-tool-grid-btn:disabled:hover .pc-tool-key {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+body.page-watch .pc-tool-unavail {
+  font-size: 0.75rem;
+  color: var(--muted);
+  padding: 0.5rem 0.6rem;
+  text-align: center;
+}
+body.page-watch .pc-icon-btn.active {
+  color: var(--text);
+  border-color: var(--accent-bright);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
 body.page-watch .pc-instance-label {
   font-size: 0.7rem;
   color: var(--muted);
@@ -1736,17 +1879,17 @@ body.page-watch .watch-error a { color: var(--accent-bright); text-decoration: n
 body.page-watch .watch-error a:hover { text-decoration: underline; }
 
 /* ===== THEATER MODE ===== */
-body.page-watch body.theater-mode .watch-main {
+body.page-watch.theater-mode .watch-main {
   max-width: 100%;
   padding: 0.75rem 1rem 3rem;
 }
-body.page-watch body.theater-mode .watch-layout {
+body.page-watch.theater-mode .watch-layout {
   grid-template-columns: 1fr;
 }
-body.page-watch body.theater-mode .watch-right {
+body.page-watch.theater-mode .watch-right {
   display: none;
 }
-body.page-watch body.theater-mode .player-wrap {
+body.page-watch.theater-mode .player-wrap {
   border-radius: 0;
   box-shadow: none;
 }

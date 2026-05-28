@@ -152,12 +152,15 @@ function createShortsCard(video, { channelId = null, searchQuery = null, shortsL
     href = `${base}?${p}`;
   }
   a.href = href;
-  const thumb = getThumbnailUrl(video.videoId);
+  const oarThumb = wsrv(`https://i.ytimg.com/vi/${video.videoId}/oar2.jpg`, 480);
+  const hqThumb  = wsrv(`https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`, 480);
   const duration = formatDuration(video.lengthSeconds);
   const views = formatViews(video.viewCount);
   a.innerHTML = `
     <div class="short-card-thumb">
-      <img src="${thumb}" alt="${escapeHtml(video.title || '')}" loading="lazy" onload="this.classList.add('loaded')" />
+      <img src="${oarThumb}" alt="${escapeHtml(video.title || '')}" loading="lazy"
+        onload="this.classList.add('loaded')"
+        onerror="this.onerror=null;this.src='${hqThumb}'" />
       ${duration ? `<span class="short-card-dur">${duration}</span>` : ''}
     </div>
     <div class="short-card-title">${escapeHtml(video.title || '')}</div>

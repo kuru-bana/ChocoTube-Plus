@@ -32,6 +32,18 @@
 
         <div class="settings-row">
           <div class="settings-row-info">
+            <div class="settings-row-label">サムネイル表示方法</div>
+            <div class="settings-row-desc">動画一覧・検索結果でのサムネイルの取得・表示方法</div>
+          </div>
+          <select class="settings-select" id="thumbnailModeSelect">
+            <option value="proxy">プロキシ（wsrv.nl 経由・デフォルト）</option>
+            <option value="server">サーバー処理（このサーバー経由）</option>
+            <option value="base64">Base64 埋め込み（データ URI）</option>
+          </select>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-row-info">
             <div class="settings-row-label">デフォルト再生速度</div>
             <div class="settings-row-desc">動画を開いたときに自動的に適用される速度</div>
           </div>

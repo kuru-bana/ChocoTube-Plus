@@ -1,1059 +1,491 @@
-function instanceHostname(invInstance) {
-  if (!invInstance) return '';
-  try { return new URL(invInstance).hostname; } catch { return invInstance; }
+function createVideoCard(video, { forceShorts = false } = {}) {
+  const hasVideoId = !!video.videoId;
+  const thumb = hasVideoId ? getThumbnailUrl(video.videoId) : null;
+  const duration = formatDuration(video.lengthSeconds);
+  const views = formatViews(video.viewCount);
+  const channelIcon = getChannelIconUrl(video.authorThumbnails);
+
+  const isShort = forceShorts || isShortVideo(video);
+
+  const el = hasVideoId ? document.createElement('a') : document.createElement('div');
+  el.className = 'video-card' + (hasVideoId ? '' : ' video-card--no-id');
+  if (hasVideoId) {
+    el.href = isShort ? `/shorts/${video.videoId}` : `/watch?v=${video.videoId}`;
+  }
+
+  const badges = [];
+  const isLive = video.liveNow || video.publishedText === '0 seconds ago';
+  if (isLive) badges.push('<span class="badge-live">LIVE</span>');
+  if (isShort && !isLive) badges.push('<span class="badge-shorts">Shorts</span>');
+  if (video.is4k) badges.push('<span class="badge-tag">4K</span>');
+  if (video.isVr360) badges.push('<span class="badge-tag">360°</span>');
+  if (video.hasCaptions) badges.push('<span class="badge-tag">CC</span>');
+
+  const channelUrl = video.authorId ? `/channel?id=${encodeURIComponent(video.authorId)}` : null;
+
+  el.innerHTML = `
+    <div class="thumb-wrap">
+      ${thumb
+        ? `<img class="thumb-img" src="${thumb}" alt="${escapeHtml(video.title)}" loading="lazy" onload="this.classList.add('loaded')" />`
+        : `<div class="thumb-img thumb-placeholder"><span class="thumb-placeholder-icon">▶</span></div>`
+      }
+      ${duration ? `<span class="duration-badge">${duration}</span>` : ''}
+      ${badges.length ? `<div class="thumb-badges">${badges.join('')}</div>` : ''}
+    </div>
+    <div class="card-info">
+      <div class="card-title">${escapeHtml(video.title)}</div>
+      <div class="card-meta">
+        <div class="card-channel-row">
+          ${channelIcon
+            ? `<img class="channel-icon" src="${channelIcon}" alt="${escapeHtml(video.author)}" loading="lazy" />`
+            : `<div class="channel-icon-placeholder"></div>`
+          }
+          ${channelUrl
+            ? `<a class="card-channel card-channel-link" href="${channelUrl}" onclick="event.stopPropagation()">${escapeHtml(video.author || '')}</a>`
+            : `<span class="card-channel">${escapeHtml(video.author || '')}</span>`
+          }
+        </div>
+        <div class="card-stats">
+          ${views ? `<span>${views}</span>` : ''}
+          ${video.publishedText ? `<span>${escapeHtml(video.publishedText)}</span>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+
+  if (channelUrl) {
+    const iconEl = el.querySelector('.channel-icon, .channel-icon-placeholder');
+    if (iconEl) {
+      iconEl.style.cursor = 'pointer';
+      iconEl.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.location.href = channelUrl;
+      });
+    }
+  }
+
+  return el;
 }
 
-function setInstanceLabel(invInstance) {
-  const label = document.getElementById('streamInstanceLabel');
-  if (!label) return;
-  label.textContent = instanceHostname(invInstance);
+function createChannelCard(item) {
+  const icon = getChannelIconUrl(item.authorThumbnails);
+  const subs = formatSubs(item.subCount);
+
+  const a = document.createElement('a');
+  a.className = 'channel-card';
+  a.href = item.authorId ? `/channel?id=${encodeURIComponent(item.authorId)}` : `https://www.youtube.com/channel/${item.authorId}`;
+
+  a.innerHTML = `
+    <div class="channel-card-inner">
+      ${icon
+        ? `<img class="channel-card-icon" src="${icon}" alt="${escapeHtml(item.author)}" loading="lazy" onload="this.classList.add('loaded')" />`
+        : `<div class="channel-card-icon-placeholder"></div>`
+      }
+      <div class="channel-card-info">
+        <div class="channel-card-name">
+          ${escapeHtml(item.author || '')}
+          ${item.authorVerified ? '<span class="verified-badge" title="認証済み">✓</span>' : ''}
+        </div>
+        ${subs ? `<div class="channel-card-subs">登録者 ${subs}</div>` : ''}
+        ${item.description ? `<div class="channel-card-desc">${escapeHtml(item.description)}</div>` : ''}
+      </div>
+    </div>
+  `;
+  return a;
 }
 
-function setHQInstanceLabel(invInstance) {
-  const label = document.getElementById('hqInstanceLabel');
-  if (!label) return;
-  label.textContent = instanceHostname(invInstance);
+function createPlaylistCard(item) {
+  const thumb = item.playlistThumbnail
+    ? wsrv(item.playlistThumbnail, 480)
+    : (item.videos && item.videos[0]?.videoId ? getThumbnailUrl(item.videos[0].videoId) : '');
+
+  const isMix = item.playlistId && item.playlistId.startsWith('RD');
+  const a = document.createElement('a');
+  a.className = 'video-card';
+  a.href = isMix
+    ? `/mix?id=${encodeURIComponent(item.playlistId)}`
+    : `/playlist?list=${encodeURIComponent(item.playlistId)}`;
+
+  a.innerHTML = `
+    <div class="thumb-wrap playlist-thumb-wrap">
+      ${thumb ? `<img class="thumb-img" src="${thumb}" alt="${escapeHtml(item.title)}" loading="lazy" onload="this.classList.add('loaded')" />` : ''}
+      <div class="playlist-count-badge">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        ${item.videoCount != null ? item.videoCount + '本' : '再生リスト'}
+      </div>
+    </div>
+    <div class="card-info">
+      <div class="card-title">${escapeHtml(item.title)}</div>
+      <div class="card-meta">
+        <div class="card-channel-row">
+          <div class="channel-icon-placeholder"></div>
+          <span class="card-channel">${escapeHtml(item.author || '')}</span>
+        </div>
+      </div>
+    </div>
+  `;
+  return a;
 }
 
-async function doStreamAlt(videoId, restoreTime = 0) {
-  const btn = document.getElementById('streamAltBtn');
-  const status = document.getElementById('streamAltStatus');
-  const shouldShowStatus = () => isStreamModeActive();
+function createResultCard(item) {
+  switch (item.type) {
+    case 'channel': return createChannelCard(item);
+    case 'playlist': return createPlaylistCard(item);
+    default: {
+      if (isShortVideo(item)) return createShortsCard(item);
+      return createVideoCard(item);
+    }
+  }
+}
 
-  if (btn) btn.disabled = true;
-  if (status && shouldShowStatus()) { status.textContent = '読み込み中...'; status.className = 'pc-alt-status'; }
+function createShortsCard(video, { channelId = null, searchQuery = null, shortsList = null } = {}) {
+  const a = document.createElement('a');
+  a.className = 'short-card';
+  const base = `/shorts/${video.videoId}`;
+  let href = base;
+  if (channelId) {
+    href = `${base}?channel=${encodeURIComponent(channelId)}`;
+  } else if (searchQuery) {
+    const p = new URLSearchParams({ q: searchQuery });
+    if (shortsList) p.set('list', shortsList);
+    href = `${base}?${p}`;
+  }
+  a.href = href;
+  const oarThumb = wsrv(`https://i.ytimg.com/vi/${video.videoId}/oar2.jpg`, 480);
+  const hqThumb  = wsrv(`https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`, 480);
+  const duration = formatDuration(video.lengthSeconds);
+  const views = formatViews(video.viewCount);
+  a.innerHTML = `
+    <div class="short-card-thumb">
+      <img src="${oarThumb}" alt="${escapeHtml(video.title || '')}" loading="lazy"
+        onload="this.classList.add('loaded')"
+        onerror="this.onerror=null;this.src='${hqThumb}'" />
+      ${duration ? `<span class="short-card-dur">${duration}</span>` : ''}
+    </div>
+    <div class="short-card-title">${escapeHtml(video.title || '')}</div>
+    ${views ? `<div class="short-card-views">${views} 回視聴</div>` : ''}
+  `;
+  return a;
+}
 
+function createShortsShelf(shorts, { searchQuery = null } = {}) {
+  const wrap = document.createElement('div');
+  wrap.className = 'shorts-shelf';
+  const header = document.createElement('div');
+  header.className = 'shorts-shelf-header';
+  header.innerHTML = `
+    <div class="shorts-shelf-icon">
+      <svg viewBox="0 0 24 24"><path d="M9 8l6 4-6 4V8z"/></svg>
+    </div>
+    <span class="shorts-shelf-title">ショート</span>
+    <span class="shorts-shelf-count">${shorts.length}件</span>
+  `;
+  const scroll = document.createElement('div');
+  scroll.className = 'shorts-shelf-scroll';
+  const shortsList = searchQuery ? shorts.map(v => v.videoId).join(',') : null;
+  shorts.forEach(v => scroll.appendChild(createShortsCard(v, { searchQuery, shortsList })));
+  wrap.appendChild(header);
+  wrap.appendChild(scroll);
+  return wrap;
+}
+
+function appendShortsToShelf(shelfEl, newShorts, allShorts, searchQuery) {
+  if (!shelfEl) return;
+  const scroll = shelfEl.querySelector('.shorts-shelf-scroll');
+  const countEl = shelfEl.querySelector('.shorts-shelf-count');
+  if (!scroll) return;
+  const spinner = shelfEl.querySelector('.shorts-shelf-spinner');
+  if (spinner) spinner.remove();
+  const shortsList = searchQuery ? allShorts.map(v => v.videoId).join(',') : null;
+  newShorts.forEach(v => scroll.appendChild(createShortsCard(v, { searchQuery, shortsList })));
+  if (countEl) countEl.textContent = `${allShorts.length}件`;
+}
+
+function createSkeletonCard() {
+  const div = document.createElement('div');
+  div.className = 'skeleton-card';
+  div.innerHTML = `
+    <div class="skeleton-thumb"></div>
+    <div class="skeleton-info">
+      <div class="skeleton-line skeleton-title"></div>
+      <div class="skeleton-line skeleton-title-short"></div>
+      <div class="skeleton-channel-row">
+        <div class="skeleton-avatar"></div>
+        <div class="skeleton-line skeleton-channel"></div>
+      </div>
+      <div class="skeleton-line skeleton-views"></div>
+    </div>
+  `;
+  return div;
+}
+
+const channelAvatarCache = new Map();
+const playlistAuthorCache = new Map();
+
+async function fetchChannelAvatar(channelId) {
+  if (channelAvatarCache.has(channelId)) return channelAvatarCache.get(channelId);
   try {
-    const excludeParam = streamExcludeList.length
-      ? '?exclude=' + encodeURIComponent(streamExcludeList.join(','))
-      : '';
-    const result = await fetchStream(`/api/stream/${videoId}${excludeParam}`);
-
-    const { data: newStreamData, instanceUrl: newInstanceUrl } = result;
-
-    const newInvInstance = newInstanceUrl || newStreamData._invidious_instance || null;
-    if (newInvInstance && !streamExcludeList.includes(newInvInstance)) {
-      streamExcludeList.push(newInvInstance);
-    }
-
-    if (!isStreamModeActive()) return;
-
-    const player = document.getElementById('videoPlayer');
-    const skeleton = document.getElementById('playerSkeleton');
-    const errorEl = document.getElementById('playerError');
-    const qualityBtns = document.getElementById('qualityBtns');
-
-    skeleton.hidden = true;
-    errorEl.hidden = true;
-
-    qualityBtns.innerHTML = '';
-
-    const formats = newStreamData.formatStreams || [];
-    if (formats.length === 0) {
-      if (isStreamModeActive()) {
-        errorEl.hidden = false;
-        document.getElementById('playerErrorMsg').textContent = 'このAPIではストリームURLが取得できませんでした。';
-        if (status) { status.textContent = 'ストリームURLなし'; status.className = 'pc-alt-status stream-alt-fail'; }
-      }
-    } else {
-      setInstanceLabel(newInvInstance);
-      streamOnlyMode = 'normal';
-      const _dsPw = document.getElementById('playerWrap');
-      if (_dsPw) _dsPw.classList.remove('stream-audio-only');
-      const _dsAtb = document.getElementById('audioTrackBar');
-      if (_dsAtb) _dsAtb.setAttribute('hidden', '');
-      const _dsVtb = document.getElementById('videoTrackBar');
-      if (_dsVtb) _dsVtb.setAttribute('hidden', '');
-      const bestFormat = setupQualities(formats);
-      if (bestFormat) {
-        lastNormalStreamSrc = bestFormat.url;
-        player.src = bestFormat.url;
-        player.muted = volState.muted;
-        const vcQualBtn2 = document.getElementById('vcQualBtn');
-        if (vcQualBtn2) vcQualBtn2.textContent = bestFormat.qualityLabel || bestFormat.quality || '画質';
-        const firstOpt2 = document.querySelector('#vcQualOpts .vctrls-dd-opt');
-        if (firstOpt2) firstOpt2.classList.add('active');
-        document.querySelectorAll('#qualityBtns .quality-btn-track[data-track-mode="normal"]').forEach(b => b.classList.add('active'));
-        if (isStreamModeActive()) {
-          player.removeAttribute('hidden');
-          if (restoreTime > 0) {
-            player.addEventListener('loadedmetadata', () => {
-              player.currentTime = restoreTime;
-              tryAutoplay(player, null);
-            }, { once: true });
-          } else {
-            tryAutoplay(player, null);
-          }
-        }
-      }
-      setupStreamOnlyBtns();
-      if (status && isStreamModeActive()) {
-        status.textContent = '読み込み完了';
-        status.className = 'pc-alt-status stream-alt-ok';
-        setTimeout(() => { status.textContent = ''; status.className = 'pc-alt-status'; }, 2500);
-      }
-    }
-  } catch (e) {
-    if (status && shouldShowStatus()) { status.textContent = '取得に失敗しました'; status.className = 'pc-alt-status stream-alt-fail'; }
-    throw e;
-  } finally {
-    if (btn) btn.disabled = false;
+    const data = await fetchMain(`/api/channels/${encodeURIComponent(channelId)}`);
+    const thumbs = data.authorThumbnails || null;
+    if (thumbs) channelAvatarCache.set(channelId, thumbs);
+    return thumbs;
+  } catch {
+    return null;
   }
 }
 
-function initStreamAltBtn(videoId) {
-  const btn = document.getElementById('streamAltBtn');
-  if (!btn) return;
-  btn.addEventListener('click', () => doStreamAlt(videoId));
+async function fetchPlaylistAuthorThumbs(playlistId) {
+  if (playlistAuthorCache.has(playlistId)) return playlistAuthorCache.get(playlistId);
+  try {
+    const data = await fetchMain(`/api/playlists/${encodeURIComponent(playlistId)}`);
+    const result = { thumbs: data.authorThumbnails || null, authorId: data.authorId || null };
+    if (result.thumbs || result.authorId) playlistAuthorCache.set(playlistId, result);
+    return result;
+  } catch {
+    return null;
+  }
 }
 
-function fmtTime(s) {
-  s = Math.floor(s) || 0;
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h) return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-  return `${m}:${String(sec).padStart(2, '0')}`;
-}
-
-function setSliderfill(el) {
-  const pct = ((parseFloat(el.value) - parseFloat(el.min)) / (parseFloat(el.max) - parseFloat(el.min)) * 100).toFixed(2) + '%';
-  el.style.setProperty('--pct', pct);
-}
-
-function initCustomControls() {
-  const player      = document.getElementById('videoPlayer');
-  const playerWrap  = document.getElementById('playerWrap');
-  const vctrls      = document.getElementById('vctrls');
-  const vcPlay      = document.getElementById('vcPlay');
-  const vcMute      = document.getElementById('vcMute');
-  const vcVol       = document.getElementById('vcVol');
-  const vcSeek      = document.getElementById('vcSeek');
-  const vcBuf       = document.getElementById('vcBuf');
-  const vcTime      = document.getElementById('vcTime');
-  const vcFs        = document.getElementById('vcFs');
-  const vcSkipBack  = document.getElementById('vcSkipBack');
-  const vcSkipFwd   = document.getElementById('vcSkipFwd');
-  const vcCenterPlay  = document.getElementById('vcCenterPlay');
-  const vcCenterIcon  = document.getElementById('vcCenterIcon');
-  const vcSpeedWrap   = document.getElementById('vcSpeedWrap');
-  const vcSpeedBtn    = document.getElementById('vcSpeedBtn');
-  const vcSpeedPanel  = document.getElementById('vcSpeedPanel');
-  const vcQualWrap    = document.getElementById('vcQualWrap');
-  const vcHQVidWrap   = document.getElementById('vcHQVidWrap');
-  const vcHQAudWrap   = document.getElementById('vcHQAudWrap');
-  const kbBackdrop    = document.getElementById('kbModalBackdrop');
-  const kbClose       = document.getElementById('kbModalClose');
-
-  const IC = {
-    play:    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><polygon points="5,3 19,12 5,21"/></svg>`,
-    pause:   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><rect x="6" y="3" width="4" height="18"/><rect x="14" y="3" width="4" height="18"/></svg>`,
-    play_lg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="32" height="32"><polygon points="5,3 19,12 5,21"/></svg>`,
-    pause_lg:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><rect x="6" y="3" width="4" height="18"/><rect x="14" y="3" width="4" height="18"/></svg>`,
-    volOn:   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`,
-    volLow:  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`,
-    volOff:  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>`,
-    fsOn:    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>`,
-    fsOff:   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>`,
-  };
-
-  const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3];
-
-  function audioEl() {
-    return (hqActive && document.getElementById('hqAudio')) || player;
-  }
-
-  // ── Show / hide controls ──
-  let hideTimer;
-  let playerHovered = false;
-
-  function isIframeMode() {
-    const nc = document.getElementById('modeNocookie');
-    const ed = document.getElementById('modeEdu');
-    return (nc && nc.classList.contains('active')) || (ed && ed.classList.contains('active'));
-  }
-
-  function showCtrls() {
-    if (isIframeMode()) return;
-    vctrls.classList.add('vctrls-show');
-    clearTimeout(hideTimer);
-    if (!player.paused) {
-      hideTimer = setTimeout(() => {
-        if (!player.paused) {
-          vctrls.classList.remove('vctrls-show');
-          playerWrap.classList.add('ctrls-playing-hidden');
-        }
-      }, 3000);
-    }
-  }
-  function keepCtrls() {
-    if (isIframeMode()) return;
-    vctrls.classList.add('vctrls-show');
-    playerWrap.classList.remove('ctrls-playing-hidden');
-    clearTimeout(hideTimer);
-  }
-
-  playerWrap.addEventListener('mousemove', () => { playerHovered = true; showCtrls(); });
-  playerWrap.addEventListener('mouseenter', () => { playerHovered = true; showCtrls(); updateCenterShow(); });
-  playerWrap.addEventListener('mouseleave', () => {
-    playerHovered = false;
-    vcCenterPlay.classList.remove('vctrls-center-show');
-    if (!player.paused) {
-      clearTimeout(hideTimer);
-      hideTimer = setTimeout(() => {
-        vctrls.classList.remove('vctrls-show');
-        playerWrap.classList.add('ctrls-playing-hidden');
-      }, 800);
-    }
-  });
-  vctrls.addEventListener('mouseenter', keepCtrls);
-  vctrls.addEventListener('mousemove', keepCtrls);
-
-  // ── Center play overlay (hover-only) ──
-  function updateCenterIcon() {
-    vcCenterIcon.innerHTML = player.paused ? IC.play_lg : IC.pause_lg;
-  }
-  function updateCenterShow() {
-    if (isIframeMode() || !playerHovered || !player.paused) {
-      vcCenterPlay.classList.remove('vctrls-center-show');
-    } else {
-      updateCenterIcon();
-      vcCenterPlay.classList.add('vctrls-center-show');
-    }
-  }
-  vcCenterIcon.addEventListener('click', () => {
-    if (isIframeMode()) return;
-    if (player.paused) player.play().catch(() => {});
-    else player.pause();
-  });
-
-  // ── Skip flash indicator ──
-  function makeFlash(side, sec) {
-    const el = document.createElement('div');
-    el.className = `vctrls-skip-flash flash-${side}`;
-    el.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="22" height="22">${side === 'left'
-      ? '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.54"/>'
-      : '<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-3.54"/>'
-    }</svg><span>${sec}秒</span>`;
-    playerWrap.appendChild(el);
-    requestAnimationFrame(() => {
-      el.classList.add('flashing');
-      el.addEventListener('animationend', () => el.remove(), { once: true });
-    });
-  }
-
-  // ── Play / Pause ──
-  function updatePlayBtn() {
-    vcPlay.innerHTML = player.paused ? IC.play : IC.pause;
-  }
-  player.addEventListener('play', () => {
-    updatePlayBtn();
-    updateCenterShow();
-    showCtrls();
-  });
-  player.addEventListener('pause', () => {
-    updatePlayBtn();
-    updateCenterShow();
-    keepCtrls();
-  });
-  vcPlay.addEventListener('click', () => {
-    if (player.paused) player.play().catch(() => {});
-    else player.pause();
-  });
-  player.addEventListener('click', (e) => {
-    if (e.target === player) vcPlay.click();
-  });
-  player.addEventListener('dblclick', (e) => {
-    if (e.target === player) vcFs.click();
-  });
-
-  // ── Skip ──
-  function doSkip(sec) {
-    if (player.duration) {
-      player.currentTime = Math.max(0, Math.min(player.duration, player.currentTime + sec));
-      const audio = document.getElementById('hqAudio');
-      if (hqActive && audio) audio.currentTime = player.currentTime;
-    }
-    makeFlash(sec < 0 ? 'left' : 'right', Math.abs(sec));
-    showCtrls();
-  }
-  vcSkipBack.addEventListener('click', () => doSkip(-10));
-  vcSkipFwd.addEventListener('click',  () => doSkip(10));
-
-  // ── Volume ──
-  function updateVolUI() {
-    const ae = audioEl();
-    const isMuted = ae.muted || ae.volume === 0;
-    if (isMuted) vcMute.innerHTML = IC.volOff;
-    else if (ae.volume < 0.5) vcMute.innerHTML = IC.volLow;
-    else vcMute.innerHTML = IC.volOn;
-    const displayVal = isMuted ? 0 : ae.volume;
-    vcVol.value = displayVal;
-    setSliderfill(vcVol);
-  }
-  vcMute.addEventListener('click', () => {
-    const ae = audioEl();
-    ae.muted = !ae.muted;
-    if (!hqActive) player.muted = ae.muted;
-    volState.muted = ae.muted;
-    updateVolUI();
-  });
-  vcVol.addEventListener('input', () => {
-    const val = parseFloat(vcVol.value);
-    const ae = audioEl();
-    ae.volume = val;
-    ae.muted = val === 0;
-    if (!hqActive) { player.volume = val; player.muted = val === 0; }
-    volState.vol = val;
-    volState.muted = val === 0;
-    setSliderfill(vcVol);
-    updateVolUI();
-  });
-  player.addEventListener('volumechange', () => { if (!hqActive) updateVolUI(); });
-
-  player.addEventListener('autoplay-muted', (e) => {
-    const ae = audioEl();
-    ae.muted = true;
-    if (!hqActive) player.muted = true;
-    volState.muted = true;
-    updateVolUI();
-  });
-
-  // ── Seek ──
-  let isSeeking = false;
-  function updateSeek() {
-    if (isSeeking || !player.duration) return;
-    const pct = player.currentTime / player.duration;
-    vcSeek.value = Math.round(pct * 1000);
-    setSliderfill(vcSeek);
-    vcTime.textContent = `${fmtTime(player.currentTime)} / ${fmtTime(player.duration)}`;
-    if (vcBuf && player.buffered.length) {
-      const bufEnd = player.buffered.end(player.buffered.length - 1);
-      vcBuf.style.width = ((bufEnd / player.duration) * 100).toFixed(2) + '%';
-    }
-  }
-  player.addEventListener('timeupdate', updateSeek);
-  player.addEventListener('progress', updateSeek);
-  player.addEventListener('loadedmetadata', () => {
-    vcSeek.max = 1000;
-    updateSeek();
-    vctrls.classList.add('vctrls-show');
-    showCtrls();
-  });
-  vcSeek.addEventListener('mousedown', () => { isSeeking = true; });
-  vcSeek.addEventListener('input', () => {
-    setSliderfill(vcSeek);
-    const pct = vcSeek.value / 1000;
-    if (player.duration) vcTime.textContent = `${fmtTime(pct * player.duration)} / ${fmtTime(player.duration)}`;
-  });
-  vcSeek.addEventListener('change', () => {
-    isSeeking = false;
-    const pct = vcSeek.value / 1000;
-    if (player.duration) {
-      player.currentTime = pct * player.duration;
-      const audio = document.getElementById('hqAudio');
-      if (hqActive && audio) audio.currentTime = player.currentTime;
-    }
-  });
-
-  // ── Generic dropdown helper ──
-  function initDropdown(wrap) {
-    const btn = wrap.querySelector('.vctrls-dd-btn');
-    if (!btn) return;
-    btn.addEventListener('click', (e) => {
+function applyIconToPlaceholder(placeholder, thumbs, authorId) {
+  const iconUrl = getChannelIconUrl(thumbs);
+  if (!iconUrl || !placeholder.isConnected) return;
+  const img = document.createElement('img');
+  img.className = 'channel-icon';
+  img.src = iconUrl;
+  img.alt = '';
+  img.loading = 'lazy';
+  img.onload = () => img.classList.add('loaded');
+  if (authorId) {
+    img.style.cursor = 'pointer';
+    img.addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
-      const isOpen = wrap.classList.contains('dd-open');
-      closeAllDropdowns();
-      if (!isOpen) wrap.classList.add('dd-open');
+      window.location.href = `/channel?id=${encodeURIComponent(authorId)}`;
     });
   }
-  function closeAllDropdowns() {
-    document.querySelectorAll('.vctrls-dd-wrap.dd-open').forEach(w => w.classList.remove('dd-open'));
-  }
-  document.addEventListener('click', closeAllDropdowns);
-  vctrls.addEventListener('click', (e) => e.stopPropagation());
-
-  initDropdown(vcSpeedWrap);
-  if (vcQualWrap) initDropdown(vcQualWrap);
-  if (vcHQVidWrap) initDropdown(vcHQVidWrap);
-  if (vcHQAudWrap) initDropdown(vcHQAudWrap);
-
-  // ── Speed ──
-  let currentSpeed = 1;
-  function setSpeed(s) {
-    currentSpeed = parseFloat(s);
-    player.playbackRate = currentSpeed;
-    const audio = document.getElementById('hqAudio');
-    if (hqActive && audio) audio.playbackRate = currentSpeed;
-    vcSpeedBtn.textContent = currentSpeed === 1 ? '1x' : currentSpeed + 'x';
-    vcSpeedPanel.querySelectorAll('.vctrls-dd-opt').forEach(b => {
-      b.classList.toggle('active', parseFloat(b.dataset.speed) === currentSpeed);
-    });
-    vcSpeedWrap.classList.remove('dd-open');
-  }
-  vcSpeedPanel.querySelectorAll('.vctrls-dd-opt').forEach(btn => {
-    btn.addEventListener('click', (e) => { e.stopPropagation(); setSpeed(btn.dataset.speed); });
-  });
-
-  // Apply settings: default speed + loop + volume
-  const _initSettings = getSettings();
-  if (_initSettings.defaultSpeed !== 1) setSpeed(_initSettings.defaultSpeed);
-  player.loop = listParam ? false : !!_initSettings.loop;
-
-  // ── 再生設定アコーディオン + トグル ──
-  {
-    const PB_OPEN_KEY = 'choco_pb_settings_open';
-
-    // アコーディオン要素
-    const pbHeader = document.getElementById('playbackInfoHeader');
-    const pbBody   = document.getElementById('playbackInfoBody');
-    const pbToggle = document.getElementById('playbackInfoToggle');
-
-    // 開閉状態を localStorage から復元（未設定時はデフォルトで開く）
-    const _pbStored = localStorage.getItem(PB_OPEN_KEY);
-    let pbOpen = _pbStored === null ? true : _pbStored === '1';
-    function _pbApplyOpen(open) {
-      pbOpen = open;
-      if (pbBody)   { if (open) pbBody.removeAttribute('hidden'); else pbBody.setAttribute('hidden', ''); }
-      if (pbToggle)  pbToggle.textContent = open ? '－' : '＋';
-      if (pbHeader)  pbHeader.setAttribute('aria-expanded', open ? 'true' : 'false');
-      try { localStorage.setItem(PB_OPEN_KEY, open ? '1' : '0'); } catch (_) {}
-    }
-    _pbApplyOpen(pbOpen);
-
-    if (pbHeader) pbHeader.addEventListener('click', () => _pbApplyOpen(!pbOpen));
-
-    // スイッチ状態ヘルパー
-    function _pbSetState(btn, checked) {
-      if (!btn) return;
-      btn.setAttribute('aria-checked', checked ? 'true' : 'false');
-      btn.setAttribute('data-state', checked ? 'checked' : 'unchecked');
-      const thumb = btn.querySelector('.switch-thumb');
-      if (thumb) thumb.setAttribute('data-state', checked ? 'checked' : 'unchecked');
-    }
-
-    const pbLoop        = document.getElementById('pbLoopToggle');
-    const pbAutoplay    = document.getElementById('pbAutoplayToggle');
-    const pbSavePos     = document.getElementById('pbSavePositionToggle');
-    const pbAutoNext    = document.getElementById('pbAutoNextToggle');
-    const pbLoopRow     = document.getElementById('pbLoopRow');
-    const pbAutoNextRow = document.getElementById('pbAutoNextRow');
-
-    // 初期値を反映
-    const _ps = getSettings();
-    _pbSetState(pbLoop,     !listParam && !!_ps.loop);
-    _pbSetState(pbAutoplay, _ps.autoplay !== false);
-    _pbSetState(pbSavePos,  !!_ps.savePosition);
-    _pbSetState(pbAutoNext, !!_ps.autoplayNext);
-
-    // プレイリスト中はループ・次へ自動を無効表示
-    if (listParam) {
-      if (pbLoopRow)     pbLoopRow.classList.add('disabled');
-      if (pbAutoNextRow) pbAutoNextRow.classList.add('disabled');
-    }
-
-    // 設定保存ヘルパー
-    function _pbPersist(updates) {
-      saveSettings(Object.assign({}, getSettings(), updates));
-    }
-
-    // ループトグル
-    if (pbLoop) pbLoop.addEventListener('click', () => {
-      if (listParam) return;
-      const next = pbLoop.getAttribute('data-state') !== 'checked';
-      _pbSetState(pbLoop, next);
-      player.loop = next;
-      if (next) {
-        _pbSetState(pbAutoNext, false);
-        _pbPersist({ loop: true, autoplayNext: false });
-      } else {
-        _pbPersist({ loop: false });
-      }
-      // nocookie / edu モードは URL パラメータでループ制御するため iframe を再読み込み
-      if (typeof window._reloadEmbedForLoop === 'function' && isExternalEmbedModeActive()) {
-        window._reloadEmbedForLoop(next);
-      }
-    });
-
-    // 自動再生トグル
-    if (pbAutoplay) pbAutoplay.addEventListener('click', () => {
-      const next = pbAutoplay.getAttribute('data-state') !== 'checked';
-      _pbSetState(pbAutoplay, next);
-      _pbPersist({ autoplay: next });
-    });
-
-    // 位置保存トグル
-    if (pbSavePos) pbSavePos.addEventListener('click', () => {
-      const next = pbSavePos.getAttribute('data-state') !== 'checked';
-      _pbSetState(pbSavePos, next);
-      _pbPersist({ savePosition: next });
-    });
-
-    // 次へ自動トグル
-    if (pbAutoNext) pbAutoNext.addEventListener('click', () => {
-      if (listParam) return;
-      const next = pbAutoNext.getAttribute('data-state') !== 'checked';
-      _pbSetState(pbAutoNext, next);
-      if (next) {
-        _pbSetState(pbLoop, false);
-        player.loop = false;
-        _pbPersist({ autoplayNext: true, loop: false });
-      } else {
-        _pbPersist({ autoplayNext: false });
-      }
-    });
-  }
-
-  // ── 再生区間 (clip range) ──
-  {
-    const clipStartInput  = document.getElementById('clipStartInput');
-    const clipEndInput    = document.getElementById('clipEndInput');
-    const clipStartError  = document.getElementById('clipStartError');
-    const clipEndError    = document.getElementById('clipEndError');
-    const clipApplyBtn    = document.getElementById('clipApplyBtn');
-    const clipClearBtn    = document.getElementById('clipClearBtn');
-    const clipActiveLabel = document.getElementById('clipActiveLabel');
-
-    function _clipUpdateActive() {
-      if (!clipActiveLabel) return;
-      if (_clipStartSec >= 0 || _clipEndSec >= 0) {
-        const parts = [];
-        if (_clipStartSec >= 0) parts.push('開始:' + _clipStartSec + 's');
-        if (_clipEndSec >= 0)   parts.push('終了:' + _clipEndSec + 's');
-        clipActiveLabel.textContent = '✓ ' + parts.join(' / ');
-        clipActiveLabel.removeAttribute('hidden');
-        if (clipClearBtn) clipClearBtn.removeAttribute('hidden');
-      } else {
-        clipActiveLabel.setAttribute('hidden', '');
-        if (clipClearBtn) clipClearBtn.setAttribute('hidden', '');
-      }
-    }
-
-    function _validateClipInputs() {
-      let valid = true;
-      if (clipStartInput && clipStartError) {
-        const v = parseTimeSec(clipStartInput.value);
-        const hasErr = clipStartInput.value !== '' && v < 0;
-        if (hasErr) { clipStartError.removeAttribute('hidden'); valid = false; }
-        else           clipStartError.setAttribute('hidden', '');
-      }
-      if (clipEndInput && clipEndError) {
-        const v = parseTimeSec(clipEndInput.value);
-        const hasErr = clipEndInput.value !== '' && v < 0;
-        if (hasErr) { clipEndError.removeAttribute('hidden'); valid = false; }
-        else           clipEndError.setAttribute('hidden', '');
-      }
-      return valid;
-    }
-
-    if (clipStartInput) clipStartInput.addEventListener('input', _validateClipInputs);
-    if (clipEndInput)   clipEndInput.addEventListener('input',   _validateClipInputs);
-
-    if (clipApplyBtn) clipApplyBtn.addEventListener('click', () => {
-      if (!_validateClipInputs()) return;
-      _clipStartSec = clipStartInput ? parseTimeSec(clipStartInput.value) : -1;
-      _clipEndSec   = clipEndInput   ? parseTimeSec(clipEndInput.value)   : -1;
-      const seekSec = _clipStartSec >= 0 ? _clipStartSec : 0;
-
-      if (isExternalEmbedModeActive()) {
-        // iframe モード: seekTo postMessage
-        _sendIframeCmd('seekTo', [seekSec, true]);
-      } else if (!player.hidden) {
-        // ネイティブプレイヤー
-        player.currentTime = seekSec;
-        if (getSettings().autoplay) player.play().catch(() => {});
-      }
-      _clipUpdateActive();
-    });
-
-    if (clipClearBtn) clipClearBtn.addEventListener('click', () => {
-      _clipStartSec = -1;
-      _clipEndSec   = -1;
-      if (clipStartInput) clipStartInput.value = '';
-      if (clipEndInput)   clipEndInput.value   = '';
-      if (clipStartError) clipStartError.setAttribute('hidden', '');
-      if (clipEndError)   clipEndError.setAttribute('hidden', '');
-      _clipUpdateActive();
-    });
-
-    // ネイティブプレイヤー: timeupdate で終了位置チェック
-    player.addEventListener('timeupdate', function _clipTimeUpdate() {
-      if (_clipEndSec >= 0 && player.currentTime >= _clipEndSec) {
-        const _s = getSettings();
-        const restartSec = _clipStartSec >= 0 ? _clipStartSec : 0;
-        if (_s.loop && !player.loop) {
-          // ループ設定ON・HTMLループOFF時はJS制御でループ
-          player.currentTime = restartSec;
-          player.play().catch(() => {});
-        } else if (!_s.loop) {
-          player.pause();
-          player.currentTime = _clipEndSec;
-        }
-      }
-    });
-  }
-
-  {
-    const initVol = Math.max(0, Math.min(1, (_initSettings.defaultVolume ?? 100) / 100));
-    const ae = audioEl();
-    ae.volume = initVol;
-    ae.muted = initVol === 0;
-    player.volume = initVol;
-    player.muted = initVol === 0;
-    volState.vol = initVol;
-    volState.muted = initVol === 0;
-    vcVol.value = initVol;
-    setSliderfill(vcVol);
-    updateVolUI();
-  }
-
-  // ── Fullscreen ──
-  function updateFsBtn() {
-    vcFs.innerHTML = document.fullscreenElement ? IC.fsOff : IC.fsOn;
-  }
-  vcFs.addEventListener('click', () => {
-    if (!document.fullscreenElement) playerWrap.requestFullscreen().catch(() => {});
-    else document.exitFullscreen().catch(() => {});
-  });
-  document.addEventListener('fullscreenchange', () => {
-    updateFsBtn();
-    if (document.fullscreenElement) showCtrls();
-  });
-
-  // ── Theater mode ──
-  function toggleTheater() {
-    document.body.classList.toggle('theater-mode');
-  }
-
-  // ── Picture-in-Picture ──
-  function togglePiP() {
-    if (document.pictureInPictureElement) {
-      document.exitPictureInPicture().catch(() => {});
-    } else if (player && !player.hidden) {
-      player.requestPictureInPicture().catch(() => {});
-    }
-  }
-
-  // ── Shortcut help modal ──
-  function showKbModal() {
-    if (kbBackdrop) kbBackdrop.removeAttribute('hidden');
-  }
-  function hideKbModal() {
-    if (kbBackdrop) kbBackdrop.setAttribute('hidden', '');
-  }
-  const vcKbBtn = document.getElementById('vcKbBtn');
-  if (vcKbBtn) vcKbBtn.addEventListener('click', showKbModal);
-  if (kbClose) kbClose.addEventListener('click', hideKbModal);
-  if (kbBackdrop) kbBackdrop.addEventListener('click', (e) => {
-    if (e.target === kbBackdrop) hideKbModal();
-  });
-
-  // ── Tool panel ──
-  function buildPcToolPanel() {
-    const panel = document.getElementById('pcToolPanel');
-    if (!panel) return;
-    panel.innerHTML = '';
-    const streamActive = !player.hidden;
-    const isIframe = isExternalEmbedModeActive();
-    const sections = [
-      {
-        heading: '再生',
-        items: [
-          { keys: 'Space / K', label: '再生 / 一時停止', stream: false, fn: () => {
-            if (isIframe) { if (_iframePlayerState === 1) _sendIframeCmd('pauseVideo', []); else _sendIframeCmd('playVideo', []); }
-            else vcPlay.click();
-          }},
-          { keys: '← / J',     label: '5秒戻る',  stream: false, fn: () => {
-            if (isIframe) _sendIframeCmd('seekTo', [Math.max(0, getIframeCurrentTime() - 5), true]);
-            else doSkip(-5);
-          }},
-          { keys: '→ / L',     label: '5秒進む',  stream: false, fn: () => {
-            if (isIframe) _sendIframeCmd('seekTo', [getIframeCurrentTime() + 5, true]);
-            else doSkip(5);
-          }},
-          { keys: 'Shift+←/J', label: '10秒戻る', stream: false, fn: () => {
-            if (isIframe) _sendIframeCmd('seekTo', [Math.max(0, getIframeCurrentTime() - 10), true]);
-            else doSkip(-10);
-          }},
-          { keys: 'Shift+→/L', label: '10秒進む', stream: false, fn: () => {
-            if (isIframe) _sendIframeCmd('seekTo', [getIframeCurrentTime() + 10, true]);
-            else doSkip(10);
-          }},
-        ],
-      },
-      {
-        heading: '音量',
-        items: [
-          { keys: '↑', label: '音量を上げる', stream: false, fn: () => {
-            if (isIframe) { _iframeVolume = Math.min(100, _iframeVolume + 10); _sendIframeCmd('setVolume', [_iframeVolume]); }
-            else { vcVol.value = Math.min(1, parseFloat(vcVol.value) + 0.1).toFixed(2); vcVol.dispatchEvent(new Event('input')); showCtrls(); }
-          }},
-          { keys: '↓', label: '音量を下げる', stream: false, fn: () => {
-            if (isIframe) { _iframeVolume = Math.max(0, _iframeVolume - 10); _sendIframeCmd('setVolume', [_iframeVolume]); }
-            else { vcVol.value = Math.max(0, parseFloat(vcVol.value) - 0.1).toFixed(2); vcVol.dispatchEvent(new Event('input')); showCtrls(); }
-          }},
-          { keys: 'M', label: 'ミュート切替', stream: false, fn: () => {
-            if (isIframe) { _iframeMuted = !_iframeMuted; _sendIframeCmd(_iframeMuted ? 'mute' : 'unMute', []); }
-            else vcMute.click();
-          }},
-        ],
-      },
-      {
-        heading: '画面',
-        items: [
-          { keys: 'F', label: 'フルスクリーン',           stream: true,  fn: () => vcFs.click() },
-          { keys: 'T', label: 'シアターモード',           stream: false, fn: () => toggleTheater() },
-          { keys: 'P', label: 'ピクチャーインピクチャー', stream: true,  fn: () => togglePiP() },
-        ],
-      },
-      {
-        heading: 'フレーム・速度',
-        items: [
-          { keys: ',', label: '1フレーム戻る',   stream: true,  fn: () => { player.pause(); player.currentTime = Math.max(0, player.currentTime - FPS); } },
-          { keys: '.', label: '1フレーム進む',   stream: true,  fn: () => { player.pause(); player.currentTime = Math.min(player.duration || 0, player.currentTime + FPS); } },
-          { keys: '<', label: '再生速度を下げる', stream: false, fn: () => {
-            if (isIframe) { const ii = SPEEDS.indexOf(_iframeRate); const ni = ii > 0 ? ii - 1 : 0; _iframeRate = SPEEDS[ni]; _sendIframeCmd('setPlaybackRate', [_iframeRate]); }
-            else { const i2 = SPEEDS.indexOf(currentSpeed); if (i2 > 0) setSpeed(SPEEDS[i2 - 1]); }
-          }},
-          { keys: '>', label: '再生速度を上げる', stream: false, fn: () => {
-            if (isIframe) { const ii = SPEEDS.indexOf(_iframeRate); const ni = ii < SPEEDS.length - 1 ? ii + 1 : ii; _iframeRate = SPEEDS[ni]; _sendIframeCmd('setPlaybackRate', [_iframeRate]); }
-            else { const i2 = SPEEDS.indexOf(currentSpeed); if (i2 < SPEEDS.length - 1) setSpeed(SPEEDS[i2 + 1]); }
-          }},
-        ],
-      },
-      {
-        heading: 'ジャンプ (0〜9)',
-        grid: true,
-        items: Array.from({ length: 10 }, (_, n) => ({
-          keys: String(n),
-          label: `${n * 10}%`,
-          stream: false,
-          fn: () => {
-            if (isIframe) { if (_iframeDuration > 0) _sendIframeCmd('seekTo', [_iframeDuration * (n / 10), true]); }
-            else { if (player.duration) { player.currentTime = player.duration * (n / 10); showCtrls(); } }
-          },
-        })),
-      },
-    ];
-    sections.forEach((sec, si) => {
-      if (si > 0) { const d = document.createElement('div'); d.className = 'pc-tool-divider'; panel.appendChild(d); }
-      const h = document.createElement('div');
-      h.className = 'pc-tool-heading';
-      h.textContent = sec.heading;
-      panel.appendChild(h);
-      if (sec.grid) {
-        const grid = document.createElement('div');
-        grid.className = 'pc-tool-grid';
-        sec.items.forEach(item => {
-          const avail = !item.stream || streamActive;
-          const btn = document.createElement('button');
-          btn.className = 'pc-tool-grid-btn';
-          btn.disabled = !avail;
-          btn.title = item.label;
-          const kbd = document.createElement('kbd'); kbd.className = 'pc-tool-key'; kbd.textContent = item.keys;
-          const lbl = document.createElement('span'); lbl.textContent = item.label;
-          btn.appendChild(kbd); btn.appendChild(lbl);
-          if (avail) btn.addEventListener('click', () => { closePcToolPanel(); item.fn(); });
-          grid.appendChild(btn);
-        });
-        panel.appendChild(grid);
-      } else {
-        sec.items.forEach(item => {
-          const avail = !item.stream || streamActive;
-          const btn = document.createElement('button');
-          btn.className = 'pc-tool-item';
-          btn.disabled = !avail;
-          const kbd = document.createElement('kbd'); kbd.className = 'pc-tool-key'; kbd.textContent = item.keys;
-          const lbl = document.createElement('span'); lbl.textContent = item.label;
-          btn.appendChild(kbd); btn.appendChild(lbl);
-          if (avail) btn.addEventListener('click', () => { closePcToolPanel(); item.fn(); });
-          panel.appendChild(btn);
-        });
-      }
-    });
-  }
-  function openPcToolPanel() {
-    buildPcToolPanel();
-    const panel = document.getElementById('pcToolPanel');
-    if (panel) panel.hidden = false;
-    document.getElementById('pcToolBtn')?.classList.add('active');
-  }
-  function closePcToolPanel() {
-    const panel = document.getElementById('pcToolPanel');
-    if (panel) panel.hidden = true;
-    document.getElementById('pcToolBtn')?.classList.remove('active');
-  }
-  const pcToolBtn = document.getElementById('pcToolBtn');
-  if (pcToolBtn) {
-    pcToolBtn.addEventListener('click', e => {
-      e.stopPropagation();
-      const panel = document.getElementById('pcToolPanel');
-      if (!panel || panel.hidden) openPcToolPanel(); else closePcToolPanel();
-    });
-    document.addEventListener('click', e => {
-      const wrap = document.getElementById('pcToolWrap');
-      if (wrap && !wrap.contains(e.target)) closePcToolPanel();
-    });
-  }
-
-  // ── Keyboard shortcuts ──
-  const FPS = 1 / 30;
-  document.addEventListener('keydown', (e) => {
-    if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
-    if (e.target.isContentEditable) return;
-    if (kbBackdrop && !kbBackdrop.hidden) {
-      if (e.key === 'Escape' || e.key === '?') { hideKbModal(); e.preventDefault(); }
-      return;
-    }
-    if (e.key === 't' || e.key === 'T') { toggleTheater(); return; }
-
-    // ── iframeモード: postMessage 経由で制御 ──
-    if (isExternalEmbedModeActive()) {
-      switch (e.key) {
-        case ' ': case 'k': case 'K':
-          e.preventDefault();
-          if (_iframePlayerState === 1) _sendIframeCmd('pauseVideo', []); else _sendIframeCmd('playVideo', []);
-          break;
-        case 'ArrowLeft': case 'j': case 'J':
-          e.preventDefault();
-          _sendIframeCmd('seekTo', [Math.max(0, getIframeCurrentTime() - (e.shiftKey ? 10 : 5)), true]);
-          break;
-        case 'ArrowRight': case 'l': case 'L':
-          e.preventDefault();
-          _sendIframeCmd('seekTo', [getIframeCurrentTime() + (e.shiftKey ? 10 : 5), true]);
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          _iframeVolume = Math.min(100, _iframeVolume + 10);
-          _sendIframeCmd('setVolume', [_iframeVolume]);
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          _iframeVolume = Math.max(0, _iframeVolume - 10);
-          _sendIframeCmd('setVolume', [_iframeVolume]);
-          break;
-        case 'm': case 'M':
-          _iframeMuted = !_iframeMuted;
-          _sendIframeCmd(_iframeMuted ? 'mute' : 'unMute', []);
-          break;
-        case '<':
-          e.preventDefault();
-          { const ii = SPEEDS.indexOf(_iframeRate); const ni = ii > 0 ? ii - 1 : 0; _iframeRate = SPEEDS[ni]; _sendIframeCmd('setPlaybackRate', [_iframeRate]); }
-          break;
-        case '>':
-          e.preventDefault();
-          { const ii = SPEEDS.indexOf(_iframeRate); const ni = ii < SPEEDS.length - 1 ? ii + 1 : ii; _iframeRate = SPEEDS[ni]; _sendIframeCmd('setPlaybackRate', [_iframeRate]); }
-          break;
-        case '?':
-          e.preventDefault();
-          showKbModal();
-          break;
-        default:
-          if (e.key >= '0' && e.key <= '9' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
-            const pct = parseInt(e.key) / 10;
-            if (_iframeDuration > 0) _sendIframeCmd('seekTo', [_iframeDuration * pct, true]);
-          }
-      }
-      return;
-    }
-
-    if (player.hidden) return;
-
-    // ── ストリーム / HQ モード: 直接制御 ──
-    switch (e.key) {
-      case ' ': case 'k': case 'K':
-        e.preventDefault();
-        vcPlay.click();
-        break;
-      case 'ArrowLeft': case 'j': case 'J':
-        e.preventDefault();
-        doSkip(e.shiftKey ? -10 : -5);
-        break;
-      case 'ArrowRight': case 'l': case 'L':
-        e.preventDefault();
-        doSkip(e.shiftKey ? 10 : 5);
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        vcVol.value = Math.min(1, parseFloat(vcVol.value) + 0.1).toFixed(2);
-        vcVol.dispatchEvent(new Event('input'));
-        showCtrls();
-        break;
-      case 'ArrowDown':
-        e.preventDefault();
-        vcVol.value = Math.max(0, parseFloat(vcVol.value) - 0.1).toFixed(2);
-        vcVol.dispatchEvent(new Event('input'));
-        showCtrls();
-        break;
-      case 'm': case 'M':
-        vcMute.click();
-        showCtrls();
-        break;
-      case 'f': case 'F':
-        vcFs.click();
-        break;
-      case 'p': case 'P':
-        togglePiP();
-        break;
-      case ',':
-        e.preventDefault();
-        player.pause();
-        player.currentTime = Math.max(0, player.currentTime - FPS);
-        break;
-      case '.':
-        e.preventDefault();
-        player.pause();
-        player.currentTime = Math.min(player.duration || 0, player.currentTime + FPS);
-        break;
-      case '<':
-        e.preventDefault();
-        { const idx = SPEEDS.indexOf(currentSpeed); if (idx > 0) setSpeed(SPEEDS[idx - 1]); }
-        break;
-      case '>':
-        e.preventDefault();
-        { const idx = SPEEDS.indexOf(currentSpeed); if (idx < SPEEDS.length - 1) setSpeed(SPEEDS[idx + 1]); }
-        break;
-      case '?':
-        e.preventDefault();
-        showKbModal();
-        break;
-      default:
-        if (e.key >= '0' && e.key <= '9' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
-          const pct = parseInt(e.key) / 10;
-          if (player.duration) {
-            player.currentTime = player.duration * pct;
-            const audio = document.getElementById('hqAudio');
-            if (hqActive && audio) audio.currentTime = player.currentTime;
-          }
-          showCtrls();
-        }
-    }
-  });
-  document.addEventListener('keyup', (e) => {
-    if (e.key === 'Escape' && kbBackdrop && !kbBackdrop.hidden) hideKbModal();
-  });
-
-  // ── Init ──
-  updatePlayBtn();
-  updateVolUI();
-  updateFsBtn();
-  updateCenterIcon();
-  setSliderfill(vcVol);
-  setSliderfill(vcSeek);
+  placeholder.replaceWith(img);
 }
 
-async function initWatch(videoId) {
-  const relatedList = document.getElementById('relatedList');
-  for (let i = 0; i < 8; i++) relatedList.appendChild(createRelatedSkeleton());
+async function fillMissingIcons(items) {
+  const channelItems = items.filter(i => i.authorId);
+  const playlistItems = items.filter(i => !i.authorId && i.playlistId);
 
-  const player = document.getElementById('videoPlayer');
-  player.poster = getThumbnailUrl(videoId);
+  // authorId がある場合は並列で即フェッチ（プレイリストページの動画アイコン等）
+  if (channelItems.length > 0) {
+    const uniqueIds = [...new Set(channelItems.map(i => i.authorId))];
+    const results = await Promise.all(uniqueIds.map(id => fetchChannelAvatar(id).then(t => [id, t])));
+    const thumbMap = new Map(results);
+    channelItems.forEach(({ card, authorId }) => {
+      const placeholder = card.querySelector('.channel-icon-placeholder');
+      if (placeholder) applyIconToPlaceholder(placeholder, thumbMap.get(authorId), authorId);
+    });
+  }
 
-  initModeBar(videoId);
-  initCustomControls();
-  initComments(videoId);
-  if (listParam) initPlaylistPanel(listParam, indexParam);
+  // playlistId しかない場合は IntersectionObserver で表示時にだけフェッチ
+  if (playlistItems.length > 0) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        const placeholder = entry.target;
+        const playlistId = placeholder.dataset.fillPlaylistId;
+        if (!playlistId) return;
+        observer.unobserve(placeholder);
+        delete placeholder.dataset.fillPlaylistId;
+        fetchPlaylistAuthorThumbs(playlistId).then(r => {
+          if (r && r.thumbs) applyIconToPlaceholder(placeholder, r.thumbs, r.authorId);
+        });
+      });
+    }, { rootMargin: '100px' });
 
-  let _homeVideoQueue = null;
-  let _homeVideoQueueIdx = -1;
-  if (!listParam) {
+    playlistItems.forEach(({ card, playlistId }) => {
+      const placeholder = card.querySelector('.channel-icon-placeholder');
+      if (!placeholder) return;
+      placeholder.dataset.fillPlaylistId = playlistId;
+      observer.observe(placeholder);
+    });
+  }
+}
+
+async function withRetry(fn, maxRetries = Infinity, baseDelay = 1500, maxDelay = 15000) {
+  let attempt = 0;
+  while (true) {
     try {
-      const raw = sessionStorage.getItem('chHomeVideoQueue');
-      if (raw) {
-        const ids = JSON.parse(raw);
-        if (Array.isArray(ids) && ids.length > 1) {
-          const idx = ids.indexOf(videoId);
-          if (idx >= 0) {
-            _homeVideoQueue = ids;
-            _homeVideoQueueIdx = idx;
-          } else {
-            sessionStorage.removeItem('chHomeVideoQueue');
-          }
-        }
-      }
-    } catch (_) {}
+      return await fn();
+    } catch (e) {
+      attempt++;
+      if (maxRetries !== Infinity && attempt >= maxRetries) throw e;
+      const delay = Math.min(baseDelay * Math.pow(1.5, attempt - 1), maxDelay);
+      await new Promise(r => setTimeout(r, delay));
+    }
   }
-
-  document.getElementById('reloadAllBtn').addEventListener('click', () => reloadAll(videoId));
-
-  try {
-    const [streamResult, metaData] = await Promise.all([
-      withRetry(() => fetchStream(`/api/stream/${videoId}`)),
-      withRetry(() => fetchMain(`/api/videos/${videoId}`))
-    ]);
-
-    const { data: streamData, instanceUrl } = streamResult;
-
-    const invInstance = instanceUrl || streamData._invidious_instance || null;
-    streamExcludeList = invInstance ? [invInstance] : [];
-    cachedInvInstance = invInstance;
-    streamAltBarReady = true;
-    initStreamAltBtn(videoId);
-
-    // Only show stream-specific UI if stream mode is currently active
-    const isStreamModeActive = document.getElementById('modeStream').classList.contains('active');
-    if (isStreamModeActive) {
-      document.getElementById('streamAltBtn').removeAttribute('hidden');
-      setInstanceLabel(invInstance);
-    }
-    setHQInstanceLabel(invInstance);
-
-    setupPlayer(streamData, videoId);
-
-    // ── 再生位置の復元と保存 ──
-    {
-      const _posPlayer = document.getElementById('videoPlayer');
-      const _savedPos = getSavedPosition(videoId);
-      if (getSettings().savePosition && _savedPos > 5) {
-        _posPlayer.addEventListener('canplay', () => {
-          if (_posPlayer.currentTime < 1) _posPlayer.currentTime = _savedPos;
-        }, { once: true });
-      }
-      let _lastPosSave = 0;
-      _posPlayer.addEventListener('timeupdate', () => {
-        if (!getSettings().savePosition) return;
-        const now = Date.now();
-        if (now - _lastPosSave < 5000) return;
-        _lastPosSave = now;
-        const t = _posPlayer.currentTime;
-        const dur = _posPlayer.duration;
-        if (t > 5) {
-          const durKnown = dur && isFinite(dur);
-          if (!durKnown || t < dur - 5) {
-            savePosition(videoId, t);
-          } else {
-            clearSavedPosition(videoId);
-          }
-        }
-      });
-      _posPlayer.addEventListener('ended', () => clearSavedPosition(videoId), { once: true });
-    }
-
-    renderVideoInfo(metaData, videoId);
-    const _related = metaData.recommendedVideos || [];
-    _relatedVideos = _related;
-    renderRelated(_related);
-
-    // Autoplay next (settings) — skip if in playlist/mix context
-    if (!listParam) {
-      const _player = document.getElementById('videoPlayer');
-      _player.addEventListener('ended', () => {
-        const _currentSettings = getSettings();
-        if (_player.loop) return;
-        if (!_currentSettings.autoplayNext) return;
-        if (_homeVideoQueue && _homeVideoQueueIdx >= 0 && _homeVideoQueueIdx < _homeVideoQueue.length - 1) {
-          window.location.href = `/watch?v=${encodeURIComponent(_homeVideoQueue[_homeVideoQueueIdx + 1])}`;
-        } else if (_related.length > 0) {
-          sessionStorage.removeItem('chHomeVideoQueue');
-          window.location.href = `/watch?v=${_related[0].videoId}`;
-        }
-      });
-    }
-
-  } catch (e) {
-    console.error(e);
-    showWatchError('動画情報の取得に失敗しました。しばらく経ってから再試行してください。', false);
-  }
-
-  initTranscript(videoId);
 }
+
+async function fetchMain(apiPath) {
+  const url = '/proxy/main' + apiPath;
+  let lastErr;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      return await res.json();
+    } catch (e) {
+      lastErr = e;
+      if (attempt < 1 && (e.name === 'TimeoutError' || e.name === 'TypeError')) continue;
+      throw e;
+    }
+  }
+  throw lastErr;
+}
+
+function createCommentItem(c) {
+  const div = document.createElement('div');
+  div.className = 'comment-item';
+
+  const authorHref = c.authorId ? `/channel?id=${encodeURIComponent(c.authorId)}` : null;
+  const thumbs = c.authorThumbnails;
+  const iconUrl = thumbs && thumbs.length
+    ? wsrv(thumbs[thumbs.length - 1].url || thumbs[0].url, 72)
+    : '';
+
+  const likesHtml = c.likeCount
+    ? `<span class="comment-likes">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+        ${c.likeCount.toLocaleString()}
+       </span>`
+    : '';
+
+  const repliesHtml = c.replyCount
+    ? `<span class="comment-replies">返信 ${c.replyCount}</span>`
+    : '';
+
+  div.innerHTML = `
+    <div class="comment-avatar-wrap">
+      ${iconUrl
+        ? `<img class="comment-avatar" src="${iconUrl}" alt="${escapeHtml(c.author || '')}" loading="lazy" onload="this.classList.add('loaded')" />`
+        : `<div class="comment-avatar-placeholder"></div>`
+      }
+    </div>
+    <div class="comment-body">
+      <div class="comment-header">
+        ${authorHref
+          ? `<a class="comment-author${c.authorVerified ? ' verified' : ''}" href="${authorHref}">${escapeHtml(c.author || '')}</a>`
+          : `<span class="comment-author${c.authorVerified ? ' verified' : ''}">${escapeHtml(c.author || '')}</span>`
+        }
+        ${c.publishedText ? `<span class="comment-date">${escapeHtml(c.publishedText)}</span>` : ''}
+        ${c.isPinned ? `<span class="comment-pinned">📌 固定</span>` : ''}
+      </div>
+      <div class="comment-text">${escapeHtml(c.content || '')}</div>
+      <div class="comment-footer">${likesHtml}${repliesHtml}</div>
+    </div>
+  `;
+  return div;
+}
+
+async function fetchStream(apiPath) {
+  const url = '/proxy/stream' + apiPath;
+  let lastErr;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      const instanceUrl = res.headers.get('X-Instance-Used') || null;
+      return { data, instanceUrl };
+    } catch (e) {
+      lastErr = e;
+      if (attempt < 1 && (e.name === 'TimeoutError' || e.name === 'TypeError')) continue;
+      throw e;
+    }
+  }
+  throw lastErr;
+}
+
+function copyText(text) {
+  return navigator.clipboard.writeText(text).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+  });
+}
+
+function setupSharePanel(btnEl, panelEl, getInfo) {
+  if (!btnEl || !panelEl) return;
+  const nativeItem = panelEl.querySelector('[data-action="native"]');
+  if (nativeItem && !navigator.share) nativeItem.hidden = true;
+
+  btnEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = !panelEl.hidden;
+    document.querySelectorAll('.share-panel').forEach(p => { p.hidden = true; });
+    if (isOpen) return;
+    const info = getInfo();
+
+    panelEl.querySelector('[data-action="copy-id"]').onclick = () => {
+      copyText(info.videoId);
+      showCopyToast('動画IDをコピーしました');
+      panelEl.hidden = true;
+    };
+    panelEl.querySelector('[data-action="copy-yt"]').onclick = () => {
+      copyText(info.ytUrl);
+      showCopyToast('YouTube URLをコピーしました');
+      panelEl.hidden = true;
+    };
+    panelEl.querySelector('[data-action="copy-app"]').onclick = () => {
+      copyText(info.appUrl);
+      showCopyToast('URLをコピーしました');
+      panelEl.hidden = true;
+    };
+    if (nativeItem && navigator.share) {
+      nativeItem.onclick = () => {
+        navigator.share({ title: info.title || '', url: info.appUrl }).catch(() => {});
+        panelEl.hidden = true;
+      };
+    }
+    panelEl.hidden = false;
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!btnEl.contains(e.target) && !panelEl.contains(e.target)) {
+      panelEl.hidden = true;
+    }
+  });
+}
+
+function showCopyToast(msg = 'URLをコピーしました') {
+  let toast = document.getElementById('_copyToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = '_copyToast';
+    toast.className = 'copy-toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.classList.add('copy-toast-show');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove('copy-toast-show'), 2000);
+}
+
+function buildSearchUrl(params) {
+  const url = new URL('/search', location.origin);
+  if (typeof getSettings === 'function') {
+    const s = getSettings();
+    if (s.searchSort && s.searchSort !== 'relevance') url.searchParams.set('sort_by', s.searchSort);
+    if (s.searchDate)                                  url.searchParams.set('date', s.searchDate);
+    if (s.searchDuration)                              url.searchParams.set('duration', s.searchDuration);
+    if (s.searchType && s.searchType !== 'all')        url.searchParams.set('type', s.searchType);
+    if (s.searchFeatures)                              url.searchParams.set('features', s.searchFeatures);
+    if (s.searchRegion && s.searchRegion !== 'JP')     url.searchParams.set('region', s.searchRegion);
+  }
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v);
+  });
+  return url.toString();
+}
+

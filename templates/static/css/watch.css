@@ -1831,6 +1831,24 @@ body.page-watch .comment-text {
   word-break: break-word;
 }
 
+body.page-watch .comment-ts-link {
+  display: inline;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: inherit;
+  font-weight: 700;
+  color: var(--accent-bright);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  border-radius: 3px;
+  transition: opacity 0.12s;
+}
+body.page-watch .comment-ts-link:hover { opacity: 0.75; }
+
 body.page-watch .comment-footer {
   display: flex;
   align-items: center;

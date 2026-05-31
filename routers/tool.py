@@ -24,3 +24,8 @@ async def tool_youtube_sia():
 @router.get("/tool/youtube/xerox")
 async def tool_youtube_xerox():
     return FileResponse("templates/tool/youtube/xerox.html", media_type="text/html")
+
+
+@router.get("/tool/youtube/wista")
+async def tool_youtube_wista():
+    return FileResponse("templates/tool/youtube/wista.html", media_type="text/html")

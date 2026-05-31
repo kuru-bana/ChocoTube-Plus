@@ -1029,7 +1029,7 @@ main {
   .header-inner { gap: 0.9rem; }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 768px) {
   .header-inner {
     gap: 0.5rem;
     flex-wrap: wrap;
@@ -1048,6 +1048,9 @@ main {
   .search-form {
     max-width: 100%;
   }
+}
+
+@media (max-width: 600px) {
   .video-grid { grid-template-columns: 1fr; }
 }
 

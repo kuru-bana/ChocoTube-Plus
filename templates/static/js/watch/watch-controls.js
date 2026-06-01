@@ -942,6 +942,38 @@ function initCustomControls() {
   setSliderfill(vcSeek);
 }
 
+function initNarrowSidebar() {
+  const btn = document.getElementById('sidebarNarrowToggleBtn');
+  const fab = document.getElementById('sidebarFab');
+  if (!btn) return;
+  const STORAGE_KEY = 'chocotube_sidebar_narrow';
+
+  function updateState(hidden) {
+    if (hidden) {
+      document.body.classList.add('sidebar-narrow-hidden');
+      btn.textContent = '▶ 表示';
+      if (fab) fab.hidden = false;
+    } else {
+      document.body.classList.remove('sidebar-narrow-hidden');
+      btn.textContent = '◀ 隠す';
+      if (fab) fab.hidden = true;
+    }
+    try { localStorage.setItem(STORAGE_KEY, hidden ? 'hidden' : 'shown'); } catch {}
+  }
+
+  let saved = '';
+  try { saved = localStorage.getItem(STORAGE_KEY) || ''; } catch {}
+  updateState(saved === 'hidden');
+
+  btn.addEventListener('click', () => {
+    updateState(!document.body.classList.contains('sidebar-narrow-hidden'));
+  });
+
+  if (fab) {
+    fab.addEventListener('click', () => updateState(false));
+  }
+}
+
 async function initWatch(videoId) {
   const relatedList = document.getElementById('relatedList');
   for (let i = 0; i < 8; i++) relatedList.appendChild(createRelatedSkeleton());
@@ -951,6 +983,7 @@ async function initWatch(videoId) {
 
   initModeBar(videoId);
   initCustomControls();
+  initNarrowSidebar();
   initComments(videoId);
   if (listParam) initPlaylistPanel(listParam, indexParam);
 
